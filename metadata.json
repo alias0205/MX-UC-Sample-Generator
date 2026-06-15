@@ -1,0 +1,6 @@
+{
+  "name": "MX UC Sample Generator",
+  "description": "Internal tool for generating MarketXtractor UC1, UC2, and UC3 samples with validation, rendering, and packaging.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
