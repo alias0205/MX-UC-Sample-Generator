@@ -8,14 +8,20 @@ import { UCResult } from "../types/mx";
 export function assertValidUcResult(result: any) {
   for (const uc of ["UC1", "UC2", "UC3"]) {
     const data = result.uc_results?.[uc];
+    const summary = data?.summary_card;
 
-    if (!data?.summary_card?.title) throw new Error(`${uc}: missing summary title`);
-    if (!data?.summary_card?.subtitle) throw new Error(`${uc}: missing summary subtitle`);
-    if (!Array.isArray(data.summary_card.stats) || data.summary_card.stats.length === 0) {
+    if (summary) {
+      summary.title = summary.title || data.title;
+      summary.subtitle = summary.subtitle || data.subtitle;
+    }
+
+    if (!summary?.title) throw new Error(`${uc}: missing summary title`);
+    if (!summary?.subtitle) throw new Error(`${uc}: missing summary subtitle`);
+    if (!Array.isArray(summary.stats) || summary.stats.length === 0) {
       throw new Error(`${uc}: missing stats`);
     }
 
-    for (const stat of data.summary_card.stats) {
+    for (const stat of summary.stats) {
       if (!stat.label || !stat.value) throw new Error(`${uc}: invalid stat`);
     }
 

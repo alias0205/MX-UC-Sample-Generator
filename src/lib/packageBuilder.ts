@@ -1,5 +1,6 @@
 import Papa from 'papaparse';
 import { MXTool, ToolResult } from '../types/mx';
+import { getPackagedScreenshotFileName } from './packageNaming';
 
 export function createUCCsvRows(tool: MXTool, result: ToolResult): any[] {
   const ucs = ['UC1', 'UC2', 'UC3'] as const;
@@ -25,10 +26,10 @@ export function createUCCsvRows(tool: MXTool, result: ToolResult): any[] {
       scenario,
       inputs_example_json: JSON.stringify(result.input_sample),
       expected_output_example_json: JSON.stringify(ucData),
-      thumb_light_jpg: `${tool.id}_${uc}_thumb_light.jpg`,
-      full_light_jpg: `${tool.id}_${uc}_full_light.jpg`,
-      thumb_dark_jpg: `${tool.id}_${uc}_thumb_dark.jpg`,
-      full_dark_jpg: `${tool.id}_${uc}_full_dark.jpg`,
+      thumb_light_jpg: getPackagedScreenshotFileName(commandSlug, tool.id, uc, 'light'),
+      full_light_jpg: getPackagedScreenshotFileName(commandSlug, tool.id, uc, 'light'),
+      thumb_dark_jpg: getPackagedScreenshotFileName(commandSlug, tool.id, uc, 'dark'),
+      full_dark_jpg: getPackagedScreenshotFileName(commandSlug, tool.id, uc, 'dark'),
       image_alt: `preview of ${tool.tool_name} ${uc} output in light and dark mode.`,
       image_caption: `Ready-to-use ${uc} results from ${tool.tool_name}.`,
       tags: [tool.category, `uc${ordinal}`].join(','),

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutGrid, Play, Eye, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { MXTool, ToolResult } from '../types/mx';
 import { cn } from '../lib/utils';
 
@@ -10,6 +10,7 @@ interface ToolTableProps {
   onGenerate: (tool: MXTool) => void;
   onPreview: (toolId: string) => void;
   selectedToolId: string | null;
+  generatingToolIds?: string[];
 }
 
 export const ToolTable: React.FC<ToolTableProps> = ({
@@ -19,6 +20,7 @@ export const ToolTable: React.FC<ToolTableProps> = ({
   onGenerate,
   onPreview,
   selectedToolId,
+  generatingToolIds = [],
 }) => {
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col h-full">
@@ -42,6 +44,7 @@ export const ToolTable: React.FC<ToolTableProps> = ({
               const validation = validationResults[tool.id];
               const result = generationResults[tool.id];
               const isSelected = selectedToolId === tool.id;
+              const isGenerating = generatingToolIds.includes(tool.id);
 
               return (
                 <tr
@@ -80,9 +83,19 @@ export const ToolTable: React.FC<ToolTableProps> = ({
                     <div className="flex items-center justify-end gap-3">
                       <button
                         onClick={() => onGenerate(tool)}
-                        className="text-blue-600 hover:underline font-medium text-xs"
+                        disabled={isGenerating}
+                        className={cn(
+                          "inline-flex min-w-[64px] items-center justify-center gap-1.5 text-blue-600 font-medium text-xs transition-colors",
+                          isGenerating ? "cursor-wait" : "hover:underline"
+                        )}
                       >
-                        Generate
+                        {isGenerating ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          </>
+                        ) : (
+                          'Generate'
+                        )}
                       </button>
                       <button
                         onClick={() => onPreview(tool.id)}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Download, FileJson, FileType, FileArchive, PackageCheck } from 'lucide-react';
 import { ToolResult } from '../types/mx';
 import { buildFullPackageZip } from '../lib/zipBuilder';
@@ -9,6 +9,7 @@ interface DownloadPanelProps {
 }
 
 export const DownloadPanel: React.FC<DownloadPanelProps> = ({ results }) => {
+  const [zipError, setZipError] = useState<string | null>(null);
   const isEnabled = results.length > 0;
 
   const handleDownloadJson = () => {
@@ -34,7 +35,14 @@ export const DownloadPanel: React.FC<DownloadPanelProps> = ({ results }) => {
   };
 
   const handleDownloadFullZip = async () => {
-    await buildFullPackageZip(results);
+    setZipError(null);
+    try {
+      await buildFullPackageZip(results);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to build ZIP package.';
+      setZipError(message);
+      console.error('Failed to build ZIP package', error);
+    }
   };
 
   return (
@@ -59,6 +67,12 @@ export const DownloadPanel: React.FC<DownloadPanelProps> = ({ results }) => {
           <span>Generate Full ZIP Package</span>
           <span className="text-slate-300 group-hover:text-slate-500">⬚</span>
         </button>
+
+        {zipError && (
+          <div className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-[10px] leading-snug text-rose-700">
+            {zipError}
+          </div>
+        )}
 
         <button
           disabled={!isEnabled}

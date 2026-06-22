@@ -3,6 +3,9 @@ import { saveAs } from 'file-saver';
 import { ToolResult } from '../types/mx';
 
 import { unparseUCCSV } from './packageBuilder';
+import { getPackagedHtmlFileName, getPackagedScreenshotFileName, toPackageFileSlug, toPackageFolderName } from './packageNaming';
+import { RENDERER_CSS } from './resultRenderer';
+import { renderHtmlToJpegBlob } from './screenshotGenerator';
 
 async function isValidJpegBlob(blob: Blob): Promise<boolean> {
   if (!(blob instanceof Blob) || blob.size < 5000) return false;
@@ -17,82 +20,80 @@ async function isValidJpegBlob(blob: Blob): Promise<boolean> {
   }
 }
 
+async function getScreenshotBlob(
+  result: ToolResult,
+  screenshot: ToolResult['screenshots'][number]
+): Promise<Blob> {
+  const existingBlob = result.screenshot_blobs?.[screenshot.full_file];
+  if (existingBlob && await isValidJpegBlob(existingBlob)) return existingBlob;
+
+  const html = result.html[screenshot.html_key as keyof ToolResult['html']];
+  if (!html) {
+    throw new Error(`Missing HTML source for ${screenshot.html_key}.`);
+  }
+
+  const regeneratedBlob = await renderHtmlToJpegBlob(html, RENDERER_CSS, screenshot.theme, 1600);
+  if (!await isValidJpegBlob(regeneratedBlob)) {
+    throw new Error(`Regenerated screenshot ${screenshot.full_file} is not a valid JPEG larger than 5KB.`);
+  }
+
+  result.screenshot_blobs ??= {};
+  result.screenshot_blobs[screenshot.full_file] = regeneratedBlob;
+  return regeneratedBlob;
+}
+
 export async function buildFullPackageZip(results: ToolResult[]): Promise<void> {
+  if (results.length === 0) {
+    throw new Error('No generated results are available to package.');
+  }
+
   const zip = new JSZip();
-
-  // Root metadata
-  zip.file('metadata.json', JSON.stringify({
-    generated_at: new Date().toISOString(),
-    tool_count: results.length,
-    generator: 'MX UC Sample Generator v3.1'
-  }, null, 2));
-
-  // Shared CSS
-  if (results.length > 0) {
-    zip.file('renderer_css.css', results[0].renderer_css);
-  }
-
-  // Results JSON
-  const resultsFolder = zip.folder('results_json');
-  // For single-tool generation, export as: {tool_id}_results.json
-  const jsonFileName = results.length === 1 ? `${results[0].tool_id}_results.json` : 'all_results.json';
-  
-  if (results.length === 1 && jsonFileName === 'marketxtractor_results.json') {
-    throw new Error("Invalid JSON filename. Must use tool_id_results.json.");
-  }
-  
-  resultsFolder?.file(jsonFileName, JSON.stringify(results.length === 1 ? results[0] : results, null, 2));
-
-  // CSV
-  const csvRows: any[] = [];
-  results.forEach(r => csvRows.push(...r.packaging.csv_rows));
-  
-  const csvContent = unparseUCCSV(csvRows);
-  zip.file('uc_samples.csv', csvContent);
-
-  // HTML and Screenshots folders
-  const htmlFolder = zip.folder('html');
-  const screenshotFolder = zip.folder('screenshots');
+  let packagedToolCount = 0;
 
   for (const res of results) {
-    if (res.status === 'error') {
-       console.warn(`Skipping ${res.tool_id} from ZIP package - tool is in error state.`);
-       continue;
+    const folderName = toPackageFolderName(res.command_slug, res.tool_id);
+    const fileSlug = toPackageFileSlug(res.command_slug, res.tool_id);
+    const toolFolder = zip.folder(folderName);
+    const htmlLightFolder = toolFolder?.folder('html')?.folder('light');
+    const htmlDarkFolder = toolFolder?.folder('html')?.folder('dark');
+    const screenshotFolder = toolFolder?.folder('screenshots');
+
+    if (!toolFolder || !htmlLightFolder || !htmlDarkFolder || !screenshotFolder) {
+      throw new Error(`Failed to create ZIP folders for ${folderName}.`);
     }
 
-    const toolId = res.tool_id;
+    toolFolder.file(`${fileSlug}.json`, JSON.stringify(stripBlobFields(res), null, 2));
+    toolFolder.file(`${fileSlug}.csv`, unparseUCCSV(res.packaging.csv_rows));
     
-    // HTML Files
-    Object.entries(res.html).forEach(([key, content]) => {
-      htmlFolder?.file(`${toolId}_${key}.html`, content);
+    (['UC1', 'UC2', 'UC3'] as const).forEach(uc => {
+      htmlLightFolder.file(getPackagedHtmlFileName(res.command_slug, res.tool_id, uc), res.html[`${uc}_light`]);
+      htmlDarkFolder.file(getPackagedHtmlFileName(res.command_slug, res.tool_id, uc), res.html[`${uc}_dark`]);
     });
 
-    // Actual Screenshots
     for (const sc of res.screenshots) {
-      const fullBlob = res.screenshot_blobs?.[sc.full_file];
-      const thumbBlob = res.screenshot_blobs?.[sc.thumb_file];
+      const fullBlob = await getScreenshotBlob(res, sc);
+      const uc = sc.html_key.split('_')[0] as 'UC1' | 'UC2' | 'UC3';
+      const screenshotFileName = getPackagedScreenshotFileName(res.command_slug, res.tool_id, uc, sc.theme);
 
-      if (fullBlob && await isValidJpegBlob(fullBlob)) {
-        screenshotFolder?.file(sc.full_file, fullBlob);
-      } else {
-        throw new Error(`CRITICAL SYSTEM FAILURE: Invalid or missing full screenshot for ${sc.full_file}. Expected valid JPEG > 5KB.`);
-      }
-
-      if (thumbBlob && await isValidJpegBlob(thumbBlob)) {
-        screenshotFolder?.file(sc.thumb_file, thumbBlob);
-      } else {
-        throw new Error(`CRITICAL SYSTEM FAILURE: Invalid or missing thumbnail for ${sc.thumb_file}. Expected valid JPEG > 5KB.`);
-      }
+      screenshotFolder.file(screenshotFileName, fullBlob);
     }
+
+    packagedToolCount += 1;
+  }
+
+  if (packagedToolCount === 0) {
+    throw new Error('No packageable generated results were found. Generate at least one tool before creating the ZIP.');
   }
 
   const content = await zip.generateAsync({ type: 'blob' });
-  // Zip name equals tool_id_package.zip
-  const zipFinalName = results.length === 1 ? `${results[0].tool_id}_package.zip` : 'marketxtractor_full_package.zip';
-  
-  if (results.length === 1 && zipFinalName === 'marketxtractor_full_package.zip') {
-    throw new Error("Invalid ZIP filename. Must use tool_id_package.zip.");
-  }
+  const zipFinalName = results.length === 1
+    ? `${toPackageFolderName(results[0].command_slug, results[0].tool_id)}.zip`
+    : 'marketxtractor_full_package.zip';
   
   saveAs(content, zipFinalName);
+}
+
+function stripBlobFields(result: ToolResult): ToolResult {
+  const { screenshot_blobs, ...serializableResult } = result;
+  return serializableResult as ToolResult;
 }

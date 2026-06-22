@@ -5,48 +5,139 @@
 
 import html2canvas from 'html2canvas';
 
+async function waitForImages(doc: Document): Promise<void> {
+  const images = Array.from(doc.images);
+  await Promise.all(
+    images.map(
+      image =>
+        image.complete
+          ? Promise.resolve()
+          : new Promise<void>(resolve => {
+              image.onload = () => resolve();
+              image.onerror = () => resolve();
+            })
+    )
+  );
+}
+
+async function waitForIframeReady(iframe: HTMLIFrameElement): Promise<Document> {
+  const doc = iframe.contentDocument;
+  if (!doc) throw new Error("Render failed: iframe document was unavailable");
+
+  if (doc.readyState !== "complete") {
+    await new Promise<void>(resolve => {
+      iframe.onload = () => resolve();
+    });
+  }
+
+  await doc.fonts?.ready.catch(() => undefined);
+  await waitForImages(doc);
+  return doc;
+}
+
+function isFullHtmlDocument(html: string): boolean {
+  return /<!doctype html|<html[\s>]/i.test(html);
+}
+
+function replaceCssFunction(source: string, functionName: string, replacement: string): string {
+  const needle = `${functionName.toLowerCase()}(`;
+  let result = '';
+  let cursor = 0;
+
+  while (cursor < source.length) {
+    const start = source.toLowerCase().indexOf(needle, cursor);
+    if (start === -1) return result + source.slice(cursor);
+
+    result += source.slice(cursor, start);
+    let depth = 1;
+    let end = start + needle.length;
+    while (end < source.length && depth > 0) {
+      if (source[end] === '(') depth += 1;
+      if (source[end] === ')') depth -= 1;
+      end += 1;
+    }
+    result += replacement;
+    cursor = end;
+  }
+
+  return result;
+}
+
+function sanitizeCssForCapture(source: string, theme: "light" | "dark"): string {
+  const fallback = theme === "dark" ? "rgba(30, 41, 59, 0.72)" : "rgba(226, 232, 240, 0.72)";
+  return replaceCssFunction(source, "color-mix", fallback);
+}
+
 export async function renderHtmlToJpegBlob(
   html: string,
   css: string,
   theme: "light" | "dark",
   width: number
 ): Promise<Blob> {
-  const host = document.createElement("div");
-  host.style.position = "fixed";
-  host.style.left = "-10000px";
-  host.style.top = "0";
-  host.style.width = `${width}px`;
+  const captureHtml = sanitizeCssForCapture(html, theme);
+  const captureCss = sanitizeCssForCapture(css, theme);
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.left = "-10000px";
+  iframe.style.top = "0";
+  iframe.style.width = `${width}px`;
+  iframe.style.height = "2000px";
+  iframe.style.border = "0";
+  iframe.setAttribute("aria-hidden", "true");
 
-  // Use shadow DOM for style isolation
-  const shadow = host.attachShadow({ mode: "open" });
-  shadow.innerHTML = `
-    <style>
-      :host { display: block; width: 100%; }
-      ${css}
-      .mx-result { padding: 40px; }
-    </style>
-    <div class="mx-theme-${theme}">
-      ${html}
-    </div>
-  `;
-
-  document.body.appendChild(host);
-
-  // Wait a bit for images/fonts (though html2canvas handles some of this)
-  await new Promise(resolve => setTimeout(resolve, 500));
-
-  const el = shadow.querySelector(".mx-result") as HTMLElement;
-  if (!el) {
-    document.body.removeChild(host);
-    throw new Error("Render failed: .mx-result not found in generated HTML");
-  }
+  document.body.appendChild(iframe);
 
   try {
+    const doc = iframe.contentDocument;
+    if (!doc) throw new Error("Render failed: iframe document was unavailable");
+
+    doc.open();
+    doc.write(
+      isFullHtmlDocument(captureHtml)
+        ? captureHtml
+        : `
+          <!doctype html>
+          <html>
+            <head>
+              <meta charset="utf-8" />
+              <style>
+                html, body {
+                  margin: 0;
+                  width: ${width}px;
+                  min-height: 100%;
+                  background: ${theme === "dark" ? "#0f172a" : "#ffffff"};
+                  color: ${theme === "dark" ? "#f8fafc" : "#0f172a"};
+                }
+                *, *::before, *::after {
+                  box-sizing: border-box;
+                  border-color: ${theme === "dark" ? "#334155" : "#e2e8f0"};
+                }
+                ${captureCss}
+                .mx-result { padding: 40px; }
+              </style>
+            </head>
+            <body>
+              <div class="mx-theme-${theme}">
+                ${captureHtml}
+              </div>
+            </body>
+          </html>
+        `
+    );
+    doc.close();
+
+    const readyDoc = await waitForIframeReady(iframe);
+    const el = readyDoc.querySelector(".mx-shell, .mx-result, main") as HTMLElement | null;
+    if (!el) throw new Error("Render failed: no renderable template root found in generated HTML");
+
+    iframe.style.height = `${Math.max(el.scrollHeight + 80, 2000)}px`;
+
     const canvas = await html2canvas(el, {
       backgroundColor: theme === "dark" ? "#0f172a" : "#ffffff",
       scale: 2,
       useCORS: true,
       logging: false,
+      windowWidth: width,
     });
 
     const blob = await new Promise<Blob>((resolve, reject) => {
@@ -57,11 +148,11 @@ export async function renderHtmlToJpegBlob(
       );
     });
 
-    document.body.removeChild(host);
     return blob;
   } catch (error) {
-    document.body.removeChild(host);
     throw error;
+  } finally {
+    document.body.removeChild(iframe);
   }
 }
 

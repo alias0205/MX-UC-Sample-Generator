@@ -33,7 +33,7 @@ import { DownloadPanel } from './components/DownloadPanel';
 import { cn } from './lib/utils';
 
 import { detectToolType } from './lib/toolIntelligence';
-import { generateToolResultWithAI } from './services/geminiService';
+import { generateToolResultWithAI } from './services/openAiService';
 import { normalizeBlocks } from './lib/blockNormalizer';
 import { validateSemanticQuality } from './lib/semanticValidator';
 
@@ -43,6 +43,7 @@ export default function App() {
   const [validationResults, setValidationResults] = useState<Record<string, { passed: boolean; issues: string[] }>>({});
   const [generationResults, setGenerationResults] = useState<Record<string, ToolResult>>({});
   const [selectedToolId, setSelectedToolId] = useState<string | null>(null);
+  const [generatingToolIds, setGeneratingToolIds] = useState<string[]>([]);
 
   const [pipeline, setPipeline] = useState<PipelineState>({
     csv_upload: 'pending',
@@ -70,16 +71,18 @@ export default function App() {
     let ucs: any = null;
     let aiError: string | null = null;
     let generationMethod = 'AI';
-
+    
     try {
+      console.log("---------------- 111111111 -----------");
       const aiData = await generateToolResultWithAI(tool);
-      
       // Strict UC Validation
       try {
+        console.log("---------------- 2222222222 -----------", aiData);
         assertValidUcResult(aiData);
         inputSample = aiData.input_sample;
         ucs = aiData.uc_results;
       } catch (err) {
+        console.log("---------------- 3333333333 -----------");
         console.warn(`AI Validation failed for tool ${tool.id}, trying fallback:`, err);
         const fallback = generateFallbackByToolType(intel, tool);
         assertValidUcResult(fallback);
@@ -132,12 +135,12 @@ export default function App() {
     
     // 6. Rendering (HTML)
     const html = {
-      UC1_light: renderResultHtml('UC1', slug, templateId, 'light', ucs.UC1),
-      UC1_dark: renderResultHtml('UC1', slug, templateId, 'dark', ucs.UC1),
-      UC2_light: renderResultHtml('UC2', slug, templateId, 'light', ucs.UC2),
-      UC2_dark: renderResultHtml('UC2', slug, templateId, 'dark', ucs.UC2),
-      UC3_light: renderResultHtml('UC3', slug, templateId, 'light', ucs.UC3),
-      UC3_dark: renderResultHtml('UC3', slug, templateId, 'dark', ucs.UC3),
+      UC1_light: renderResultHtml('UC1', slug, templateId, 'light', ucs.UC1, tool),
+      UC1_dark: renderResultHtml('UC1', slug, templateId, 'dark', ucs.UC1, tool),
+      UC2_light: renderResultHtml('UC2', slug, templateId, 'light', ucs.UC2, tool),
+      UC2_dark: renderResultHtml('UC2', slug, templateId, 'dark', ucs.UC2, tool),
+      UC3_light: renderResultHtml('UC3', slug, templateId, 'light', ucs.UC3, tool),
+      UC3_dark: renderResultHtml('UC3', slug, templateId, 'dark', ucs.UC3, tool),
     };
 
     // HTML Integrity Check
@@ -287,9 +290,14 @@ export default function App() {
   };
 
   const handleGenerateSingle = async (tool: MXTool) => {
-    const result = await generateToolResult(tool);
-    setGenerationResults(prev => ({ ...prev, [tool.id]: result }));
-    setSelectedToolId(tool.id);
+    setGeneratingToolIds(prev => prev.includes(tool.id) ? prev : [...prev, tool.id]);
+    try {
+      const result = await generateToolResult(tool);
+      setGenerationResults(prev => ({ ...prev, [tool.id]: result }));
+      setSelectedToolId(tool.id);
+    } finally {
+      setGeneratingToolIds(prev => prev.filter(id => id !== tool.id));
+    }
   };
 
   const handleBatchGenerate = async (limit?: number) => {
@@ -330,6 +338,7 @@ export default function App() {
   const handleReset = () => {
     setTools([]);
     setGenerationResults({});
+    setGeneratingToolIds([]);
     setValidationResults({});
     setSelectedToolId(null);
     setPipeline({
@@ -422,6 +431,7 @@ export default function App() {
                 tools={tools} 
                 validationResults={validationResults} 
                 generationResults={generationResults}
+                generatingToolIds={generatingToolIds}
                 onGenerate={handleGenerateSingle}
                 onPreview={setSelectedToolId}
                 selectedToolId={selectedToolId}

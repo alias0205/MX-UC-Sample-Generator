@@ -23,9 +23,12 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ result }) => {
     );
   }
 
-  const ucData = result.uc_results[activeUC];
   const htmlLight = result.html[`${activeUC}_light` as keyof typeof result.html];
   const htmlDark = result.html[`${activeUC}_dark` as keyof typeof result.html];
+  const previewHtmlByTheme = {
+    light: htmlLight,
+    dark: htmlDark,
+  };
 
   return (
     <div className="flex flex-col h-full bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -62,7 +65,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ result }) => {
       <div className="flex-1 p-4 overflow-hidden bg-[#F8FAFC]">
         {activeTab === 'preview' && (
           <div className="h-full">
-            <HtmlPreview html={htmlLight} theme="light" />
+            <HtmlPreview htmlByTheme={previewHtmlByTheme} initialTheme="light" />
           </div>
         )}
         {activeTab === 'json' && (
