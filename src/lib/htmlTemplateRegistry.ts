@@ -31,6 +31,13 @@ function belongsToTemplate(path: string, templateId: string): boolean {
   return path.startsWith(`../templates/${templateId}/`) || fileName.startsWith(`${templateId}_`);
 }
 
+export interface TemplatePlaceholderDefinition {
+  name: string;
+  section: string;
+  type: string;
+  required: boolean;
+}
+
 function findMasterTemplate(templateId: string): [string, string] | undefined {
   const entry = Object.entries(rawTemplateFiles).find(([path]) =>
     belongsToTemplate(path, templateId) && path.toLowerCase().endsWith('_master_template.html')
@@ -87,4 +94,33 @@ export function getHtmlTemplateFile(
     masterHtml: masterTemplate?.[1],
     masterPath: masterTemplate ? toDisplayPath(masterTemplate[0]) : undefined,
   };
+}
+
+export function getTemplatePlaceholderDefinitions(
+  templateId: string,
+  useCaseId: UseCaseId,
+  theme: Theme = 'light'
+): TemplatePlaceholderDefinition[] {
+  const template = getHtmlTemplateFile(templateId, useCaseId, theme);
+  if (!template) return [];
+
+  const doc = new DOMParser().parseFromString(template.html, 'text/html');
+  const schemaText = doc.querySelector('#mx-ui-label-schema')?.textContent;
+  if (!schemaText) return [];
+
+  try {
+    const schema = JSON.parse(schemaText) as {
+      placeholders?: Array<{ placeholder?: string; section?: string; type?: string; required?: boolean }>;
+    };
+    return (schema.placeholders ?? [])
+      .filter(item => typeof item.placeholder === 'string')
+      .map(item => ({
+        name: item.placeholder!.replace('{{', '').replace('}}', '').trim(),
+        section: item.section ?? 'content',
+        type: item.type ?? 'text',
+        required: item.required ?? false,
+      }));
+  } catch {
+    return [];
+  }
 }

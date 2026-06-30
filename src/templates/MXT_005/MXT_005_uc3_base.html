@@ -5,8 +5,8 @@
   --mx-section-bg:#11182b;--mx-inner-bg:#0f172a;--mx-text:#f8fafc;--mx-muted:#aebdd2;
   --mx-shell-border:rgba(255,255,255,.14);--mx-section-border:rgba(255,255,255,.12);--mx-inner-border:rgba(255,255,255,.10);
   --mx-placeholder-bg:rgba(255,255,255,.045);--mx-placeholder-border:rgba(255,255,255,.18);
-  --mx-pill-1:#38bdf8;--mx-pill-2:#a78bfa;--mx-pill-3:#34d399;--mx-pill-4:#fbbf24;
-  --mx-pill-5:#fb7185;--mx-pill-6:#94a3b8;
+  --mx-pill-1:#38bdf8;--mx-pill-2:#a78bfa;--mx-pill-3:#34d399;--mx-pill-4:#f59e0b;
+  --mx-pill-5:#fb7185;--mx-pill-6:#3b82f6;
   --mx-space-xs:6px;--mx-space-sm:10px;--mx-space-md:16px;--mx-space-lg:24px;
   --mx-space-xl:32px;--mx-space-2xl:44px;
 }
@@ -25,8 +25,8 @@ body[data-theme="light"] .mx-brand-logo{filter:brightness(0)}
 .mx-hero{margin-bottom:var(--mx-space-lg)}
 .mx-hero-title{margin:0 0 var(--mx-space-md);font-size:clamp(30px,4vw,44px);line-height:1.05;letter-spacing:-.05em}
 .mx-hero-pills{display:flex;flex-wrap:wrap;gap:10px}
-.mx-pill{--pill-color:var(--mx-pill-1);display:inline-flex;align-items:center;gap:8px;min-height:32px;padding:7px 12px;border-radius:999px;border:1px solid color-mix(in srgb,var(--pill-color) 55%,transparent);background:color-mix(in srgb,var(--pill-color) 14%,var(--mx-inner-bg));color:var(--mx-text);font-size:12px;font-weight:800;white-space:nowrap}
-.mx-pill-dot{width:7px;height:7px;border-radius:50%;background:var(--pill-color);box-shadow:0 0 12px var(--pill-color)}
+.mx-pill{--pill-color:var(--mx-pill-1);display:inline-flex;align-items:center;gap:8px;min-height:32px;padding:7px 12px;border-radius:999px;border:1px solid currentColor;background:color-mix(in srgb,var(--pill-color) 14%,var(--mx-inner-bg));color:var(--pill-color);font-size:12px;font-weight:800;white-space:nowrap}
+.mx-pill-dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 12px currentColor}
 .mx-pill-1{--pill-color:var(--mx-pill-1)}
 .mx-pill-2{--pill-color:var(--mx-pill-2)}
 .mx-pill-3{--pill-color:var(--mx-pill-3)}
@@ -45,6 +45,11 @@ body[data-theme="light"] .mx-brand-logo{filter:brightness(0)}
 .mx-placeholder{display:block;width:100%;min-height:34px;padding:8px 10px;border:1px dashed var(--mx-placeholder-border);border-radius:10px;background:var(--mx-placeholder-bg);color:var(--mx-text);line-height:1.45;overflow-wrap:anywhere;white-space:normal}
 .mx-placeholder-inline{display:inline;overflow-wrap:anywhere}
 .mx-metadata-grid,.mx-strategy-grid,.mx-sequence-grid,.mx-action-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--mx-space-md)}
+.mx-meta-row{display:flex;flex-wrap:wrap;gap:12px;color:var(--mx-text);font-size:15px}
+.mx-summary-chip{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:8px 12px;border-radius:999px;border:1px solid currentColor;background:color-mix(in srgb,currentColor 13%,var(--mx-inner-bg));font-weight:700;line-height:1.2}
+.mx-summary-chip strong{font-weight:900;color:var(--mx-text)}
+.mx-summary-chip .mx-static-icon{width:26px;height:26px;margin-right:0;border-radius:999px;font-size:14px;background:color-mix(in srgb,currentColor 18%,var(--mx-inner-bg))}
+.mx-summary-chip-blue{color:var(--mx-pill-6)}.mx-summary-chip-purple{color:var(--mx-pill-2)}.mx-summary-chip-teal{color:#2dd4bf}
 .mx-inner-card{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;padding:var(--mx-space-md);border:1px solid var(--mx-inner-border);border-radius:18px;background:var(--mx-inner-bg);min-width:0}
 .mx-metadata-card,.mx-sequence-grid .mx-inner-card,.mx-action-grid .mx-inner-card{display:block}
 .mx-card-index{position:relative;display:grid;place-items:center;width:42px;height:42px;border-radius:13px;border:1px solid rgba(125,211,252,.78);background:radial-gradient(circle at 30% 15%,rgba(255,255,255,.30),transparent 34%),linear-gradient(180deg,#38a7e8 0%,#1879c8 52%,#2453b7 100%);color:#fff;font-weight:950;font-size:15px;line-height:1;text-shadow:0 2px 4px rgba(3,20,50,.48);box-shadow:0 0 0 1px rgba(56,189,248,.18),0 9px 20px rgba(14,116,200,.27),inset 0 2px 0 rgba(255,255,255,.34),inset 0 -3px 7px rgba(20,50,130,.30)}
@@ -58,6 +63,8 @@ body[data-theme="light"] .mx-brand-logo{filter:brightness(0)}
 .mx-tag-red{background:rgba(251,113,133,.14);color:#fb7185}.mx-tag-yellow{background:rgba(251,191,36,.14);color:#d99a00}.mx-tag-blue{background:rgba(56,189,248,.14);color:#0ea5e9}.mx-tag-teal{background:rgba(52,211,153,.14);color:#10b981}
 .mx-recommend-card{background:linear-gradient(135deg,color-mix(in srgb,#38bdf8 8%,var(--mx-section-bg)),color-mix(in srgb,#a78bfa 10%,var(--mx-section-bg)));border-color:color-mix(in srgb,#a78bfa 34%,var(--mx-section-border))}
 .mx-recommend-title{display:flex;align-items:center;margin:6px 0 14px;font-size:22px;line-height:1.2;letter-spacing:-.03em}
+.mx-brief-section .mx-section-head,.mx-final-recommendation-section .mx-section-head{margin-bottom:10px}.mx-brief-section .mx-section-head h2,.mx-final-recommendation-section .mx-section-head h2{margin:0}
+.mx-rewrite-strategy-section .mx-section-head,.mx-trigger-table-section .mx-section-head,.mx-sequence-section .mx-section-head,.mx-next-actions-section .mx-section-head{margin-bottom:10px}.mx-rewrite-strategy-section .mx-section-head h2,.mx-trigger-table-section .mx-section-head h2,.mx-sequence-section .mx-section-head h2,.mx-next-actions-section .mx-section-head h2{margin:0}
 .mx-footer{padding:20px 28px 24px;border-top:1px solid var(--mx-shell-border);background:var(--mx-shell-bg)}
 .mx-download-group{display:flex;flex-wrap:wrap;gap:12px}
 .mx-btn{display:flex;align-items:center;gap:10px;padding:12px 18px;border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;border:1px solid transparent;transition:all .25s ease;font-family:var(--mx-font)}
@@ -69,9 +76,10 @@ body[data-theme="light"] .mx-btn{box-shadow:inset 0 1px 0 rgba(255,255,255,.62),
 body[data-theme="light"] .mx-btn-json{background:linear-gradient(180deg,#60a5fa 0%,#3b82f6 48%,#2563eb 100%);border-color:#1d4ed8;color:#fff}
 body[data-theme="light"] .mx-btn-csv{background:linear-gradient(180deg,#fcd34d 0%,#f59e0b 50%,#d97706 100%);border-color:#b45309;color:#fff}
 body[data-theme="light"] .mx-btn-pdf{background:linear-gradient(180deg,#fb7185 0%,#ef4444 50%,#dc2626 100%);border-color:#b91c1c;color:#fff}
-@media(max-width:820px){body{padding:0 10px}.mx-shell{margin:16px auto}.mx-panel{margin:8px}.mx-inner{padding:20px}.mx-metadata-grid,.mx-strategy-grid,.mx-sequence-grid,.mx-action-grid{grid-template-columns:1fr}.mx-pill{white-space:normal}.mx-footer{padding:18px 20px}}
+@media(max-width:820px){body{padding:0 10px}.mx-shell{margin:16px auto}.mx-panel{margin:8px}.mx-inner{padding:20px}.mx-metadata-grid,.mx-strategy-grid,.mx-sequence-grid,.mx-action-grid{grid-template-columns:1fr}.mx-pill,.mx-summary-chip{white-space:normal}.mx-footer{padding:18px 20px}}
 
-.mx-audit-context{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.mx-context-pill{display:inline-flex;padding:7px 11px;border:1px solid currentColor;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap}.mx-context-blue{color:#38bdf8;background:rgba(56,189,248,.13)}.mx-context-green{color:#22c55e;background:rgba(34,197,94,.13)}.mx-context-amber{color:#f59e0b;background:rgba(245,158,11,.13)}
+.mx-section-head{margin-bottom:10px}.mx-section-head h2{margin:0}.mx-audit-summary .mx-section-head{margin-bottom:8px}.mx-audit-summary .mx-summary-title{margin:0;font-size:31px;line-height:1.14;font-weight:900}
+.mx-audit-context{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.mx-context-pill{display:inline-flex;gap:5px;padding:7px 11px;border:1px solid currentColor;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap}.mx-context-blue{color:#38bdf8;background:rgba(56,189,248,.13)}.mx-context-green{color:#22c55e;background:rgba(34,197,94,.13)}.mx-context-amber{color:#f59e0b;background:rgba(245,158,11,.13)}
 .mx-score-grid{display:grid;grid-template-columns:320px minmax(0,1fr);gap:var(--mx-space-lg);margin-top:var(--mx-space-xl)}
 .mx-score-card{display:grid;place-items:center;text-align:center;min-height:360px;overflow:hidden;background:linear-gradient(180deg,var(--mx-inner-bg),color-mix(in srgb,var(--mx-inner-bg) 82%,#020617))}
 .mx-score-ring{width:264px;position:relative}.mx-score-svg{display:block;width:264px;height:264px;filter:drop-shadow(0 18px 28px rgba(0,0,0,.26))}
@@ -84,11 +92,11 @@ body[data-theme="light"] .mx-btn-pdf{background:linear-gradient(180deg,#fb7185 0
 body[data-theme="light"] .mx-score-card-executive .mx-risk-level{border-color:#93c5fd;background:linear-gradient(180deg,#ffffff 0%,#e8f1fb 100%);color:#334155;box-shadow:inset 0 1px 0 #fff,0 7px 16px rgba(37,99,235,.12)}
 body[data-theme="light"] .mx-score-card-executive .mx-risk-level strong{color:#047857;text-shadow:none}
 .mx-dimension-card{display:block;min-height:360px}.mx-dimension-head{display:flex;justify-content:space-between;margin-bottom:6px;color:var(--mx-muted);font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
-.mx-dimension-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(120px,.8fr) minmax(170px,.9fr);align-items:center;gap:12px;min-height:66px;border-top:1px solid var(--mx-inner-border)}.mx-dimension-row:first-of-type{border-top:0}
-.mx-dimension-name,.mx-dimension-value{font-size:12px;overflow-wrap:anywhere;white-space:normal}.mx-dimension-name{font-weight:700}.mx-dimension-value{text-align:right;font-weight:900}.mx-dimension-row .mx-metric-tag{justify-content:center;text-align:center}.mx-dimension-status{border:1px solid currentColor;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 4px 12px rgba(0,0,0,.12);font-size:10px;white-space:nowrap;overflow-wrap:normal}.mx-dimension-status-01{background:rgba(34,197,94,.18);color:#22c55e}.mx-dimension-status-02{background:rgba(59,130,246,.18);color:#3b82f6}.mx-dimension-status-03{background:rgba(168,85,247,.18);color:#a855f7}.mx-dimension-status-04{background:rgba(245,158,11,.18);color:#f59e0b}
-.mx-issue-table{min-width:880px}.mx-issue-table td{font-size:13px}.mx-issue-severity{border:1px solid currentColor;font-size:10px;white-space:nowrap}.mx-issue-severity-1,.mx-issue-severity-4{color:#fb7185;background:rgba(251,113,133,.14)}.mx-issue-severity-2,.mx-issue-severity-5{color:#f59e0b;background:rgba(245,158,11,.14)}.mx-issue-severity-3{color:#3b82f6;background:rgba(59,130,246,.14)}
-.mx-bars{display:grid;gap:14px}.mx-bar-row{display:grid;grid-template-columns:minmax(170px,1fr) minmax(220px,1.7fr) minmax(130px,.8fr);align-items:center;gap:14px}.mx-bar-label,.mx-bar-value{font-size:12px;overflow-wrap:anywhere}.mx-bar-track{height:12px;border-radius:999px;background:var(--mx-placeholder-bg);overflow:hidden}.mx-bar-fill{width:var(--mx-bar-width);height:100%;border-radius:inherit;background:linear-gradient(90deg,#38bdf8,#8b5cf6)}.mx-bar-value{text-align:right;font-weight:900}
-.mx-two-column{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--mx-space-lg)}.mx-two-column .mx-section{height:calc(100% - var(--mx-space-lg))}.mx-finding-list{display:grid;gap:12px}.mx-finding-card{align-items:start}.mx-finding-card .mx-placeholder{font-size:13px}
+.mx-dimension-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(88px,.38fr) auto;align-items:center;gap:12px;min-height:66px;border-top:1px solid var(--mx-inner-border)}.mx-dimension-row:first-of-type{border-top:0}
+.mx-dimension-name,.mx-dimension-value{font-size:12px;overflow-wrap:anywhere;white-space:normal}.mx-dimension-name{font-weight:700}.mx-dimension-value{text-align:right;font-weight:900}.mx-dimension-row .mx-metric-tag{justify-self:end;justify-content:center;text-align:center}.mx-dimension-status{min-width:58px;padding:6px 11px;border:1px solid currentColor;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 4px 12px rgba(0,0,0,.12);font-size:12px;line-height:1.1;font-weight:900;white-space:nowrap;overflow-wrap:normal}.mx-dimension-status-01{background:rgba(34,197,94,.18);color:#22c55e}.mx-dimension-status-02{background:rgba(59,130,246,.18);color:#3b82f6}.mx-dimension-status-03{background:rgba(168,85,247,.18);color:#a855f7}.mx-dimension-status-04{background:rgba(245,158,11,.18);color:#f59e0b}
+.mx-factor-table{min-width:760px}.mx-factor-table td{font-size:13px}.mx-issue-severity{justify-content:center;min-width:54px;border:1px solid currentColor;font-size:12px;font-weight:900;white-space:nowrap}.mx-issue-severity-1,.mx-issue-severity-4{color:#fb7185;background:rgba(251,113,133,.14)}.mx-issue-severity-2,.mx-issue-severity-5{color:#f59e0b;background:rgba(245,158,11,.14)}.mx-issue-severity-3{color:#3b82f6;background:rgba(59,130,246,.14)}
+.mx-bars{display:grid;gap:16px}.mx-bar-row{display:grid;grid-template-columns:minmax(220px,1fr) minmax(220px,1.55fr) minmax(82px,.35fr);align-items:center;gap:14px}.mx-bar-label{font-size:15px;line-height:1.3;font-weight:500;overflow-wrap:anywhere}.mx-bar-value{font-size:18px;line-height:1.1;overflow-wrap:anywhere}.mx-bar-track{height:13px;border-radius:999px;background:var(--mx-placeholder-bg);overflow:hidden}.mx-bar-fill{width:var(--mx-bar-width);height:100%;border-radius:inherit;background:linear-gradient(90deg,#38bdf8,#8b5cf6)}.mx-bar-value{text-align:right;font-weight:900}
+.mx-recommend-list{display:grid;gap:10px}.mx-recommend-list .mx-placeholder{font-size:15px;line-height:1.5}.mx-finding-list{display:grid;gap:12px}.mx-finding-card{align-items:start}.mx-finding-card .mx-placeholder{font-size:14px;line-height:1.5}
 @media(max-width:820px){.mx-score-grid,.mx-two-column{grid-template-columns:1fr}.mx-dimension-row{grid-template-columns:minmax(0,1fr) auto}.mx-dimension-value{order:2}.mx-dimension-row .mx-metric-tag{grid-column:2}.mx-bar-row{grid-template-columns:1fr}.mx-bar-value{text-align:left}}
 </style></head><body data-theme="dark"><main class="mx-shell" data-template-id="MXT_005" data-theme="{{theme}}" data-uc="uc3"><section class="mx-panel"><div class="mx-inner">
 <div class="mx-topbar">
@@ -102,25 +110,26 @@ body[data-theme="light"] .mx-score-card-executive .mx-risk-level strong{color:#0
 <header class="mx-hero">
   <h1 class="mx-hero-title"><span class="mx-icon-placeholder" aria-hidden="true">{{hero_icon}}</span><span class="mx-placeholder-inline">{{hero_title}}</span></h1>
   <div class="mx-hero-pills">
-    <span class="mx-pill mx-pill-1"><span class="mx-pill-dot"></span>{{hero_pill_01}}</span>
-    <span class="mx-pill mx-pill-2"><span class="mx-pill-dot"></span>{{hero_pill_02}}</span>
-    <span class="mx-pill mx-pill-3"><span class="mx-pill-dot"></span>{{hero_pill_03}}</span>
-    <span class="mx-pill mx-pill-4"><span class="mx-pill-dot"></span>{{hero_pill_04}}</span>
-    <span class="mx-pill mx-pill-5"><span class="mx-pill-dot"></span>{{hero_pill_05}}</span>
-    <span class="mx-pill mx-pill-6"><span class="mx-pill-dot"></span>{{hero_pill_06}}</span>
+    <span class="mx-pill mx-pill-1"><span class="mx-pill-dot"></span>{{hero_pill_1}}</span>
+    <span class="mx-pill mx-pill-2"><span class="mx-pill-dot"></span>{{hero_pill_2}}</span>
+    <span class="mx-pill mx-pill-3"><span class="mx-pill-dot"></span>{{hero_pill_3}}</span>
+    <span class="mx-pill mx-pill-4"><span class="mx-pill-dot"></span>{{hero_pill_4}}</span>
+    <span class="mx-pill mx-pill-5"><span class="mx-pill-dot"></span>{{hero_pill_5}}</span>
+    <span class="mx-pill mx-pill-6"><span class="mx-pill-dot"></span>{{hero_pill_6}}</span>
   </div>
 </header><div class="mx-divider"></div>
 <section class="mx-section mx-section-card mx-audit-summary">
   <div class="mx-section-head">
-    <span class="mx-label">Audit summary</span>
-    
+    <span class="mx-label">Keyword being evaluated</span>
   </div>
-  <div class="mx-section-body"><h2 class="mx-summary-title">{{audit_subject}}</h2><div class="mx-placeholder">{{audit_summary}}</div>
+  <div class="mx-section-body">
+    <h2 class="mx-summary-title">{{audit_subject}}</h2>
     <div class="mx-audit-context">
-      <span class="mx-context-pill mx-context-blue">{{audit_context_country}}</span>
-      <span class="mx-context-pill mx-context-green">{{audit_context_language}}</span>
-      <span class="mx-context-pill mx-context-amber">{{audit_context_intent}}</span>
-    </div></div>
+      <span class="mx-context-pill mx-context-blue"><strong>Country:</strong> {{audit_context_country}}</span>
+      <span class="mx-context-pill mx-context-green"><strong>Language:</strong> {{audit_context_language}}</span>
+      <span class="mx-context-pill mx-context-amber"><strong>Search Intent:</strong> {{audit_context_intent}}</span>
+    </div>
+  </div>
 </section><div class="mx-score-grid"><section class="mx-score-card mx-score-card-executive mx-inner-card" data-gauge-tier="executive">
     <div class="mx-score-ring">
     <svg class="mx-score-svg" viewBox="0 0 264 264" role="img" aria-label="Audit score gauge">
@@ -145,7 +154,7 @@ body[data-theme="light"] .mx-score-card-executive .mx-risk-level strong{color:#0
     <div class="mx-risk-level"><span>Score Status</span><strong>{{score_status}}</strong></div>
     </div>
   </section><section class="mx-dimension-card mx-inner-card">
-  <div class="mx-dimension-head"><span>Audit dimensions</span><span>Status</span></div>
+  <div class="mx-dimension-head"><span>Score dimensions</span><span>Meaning</span></div>
   <div class="mx-dimension-row">
       <div class="mx-dimension-name">{{dimension_name_01}}</div>
       <div class="mx-dimension-value">{{dimension_value_01}}</div>
@@ -164,44 +173,29 @@ body[data-theme="light"] .mx-score-card-executive .mx-risk-level strong{color:#0
       <div class="mx-metric-tag mx-dimension-status mx-dimension-status-04">{{dimension_status_04}}</div>
     </div>
 </section></div>
-<section class="mx-section mx-section-card">
+<section class="mx-section mx-section-card mx-competitive-breakdown-section">
   <div class="mx-section-head">
-    <span class="mx-label">Analysis</span>
-    <h2><span class="mx-static-icon" aria-hidden="true">&#128200;</span>Audit pressure breakdown</h2>
+    <h2><span class="mx-static-icon" aria-hidden="true">📈</span>Competitive Breakdown</h2>
   </div>
   <div class="mx-section-body"><div class="mx-bars"><div class="mx-bar-row"><div class="mx-bar-label">{{audit_pressure_label_01}}</div><div class="mx-bar-track"><div class="mx-bar-fill" style="--mx-bar-width:{{audit_pressure_width_01}}%"></div></div><div class="mx-bar-value">{{audit_pressure_value_01}}</div></div><div class="mx-bar-row"><div class="mx-bar-label">{{audit_pressure_label_02}}</div><div class="mx-bar-track"><div class="mx-bar-fill" style="--mx-bar-width:{{audit_pressure_width_02}}%"></div></div><div class="mx-bar-value">{{audit_pressure_value_02}}</div></div><div class="mx-bar-row"><div class="mx-bar-label">{{audit_pressure_label_03}}</div><div class="mx-bar-track"><div class="mx-bar-fill" style="--mx-bar-width:{{audit_pressure_width_03}}%"></div></div><div class="mx-bar-value">{{audit_pressure_value_03}}</div></div><div class="mx-bar-row"><div class="mx-bar-label">{{audit_pressure_label_04}}</div><div class="mx-bar-track"><div class="mx-bar-fill" style="--mx-bar-width:{{audit_pressure_width_04}}%"></div></div><div class="mx-bar-value">{{audit_pressure_value_04}}</div></div><div class="mx-bar-row"><div class="mx-bar-label">{{audit_pressure_label_05}}</div><div class="mx-bar-track"><div class="mx-bar-fill" style="--mx-bar-width:{{audit_pressure_width_05}}%"></div></div><div class="mx-bar-value">{{audit_pressure_value_05}}</div></div></div></div>
 </section>
 <section class="mx-section mx-section-card">
   <div class="mx-section-head">
-    <span class="mx-label">Issues</span>
-    <h2><span class="mx-static-icon" aria-hidden="true">&#128680;</span>Prioritized issues</h2>
+    <h2><span class="mx-static-icon" aria-hidden="true">🎯</span>SEO Action Plan</h2>
   </div>
-  <div class="mx-section-body"><div class="mx-table-wrap"><table class="mx-table mx-issue-table">
-    <thead><tr><th>Issue</th><th>Severity</th><th>Evidence</th><th>Fix</th></tr></thead>
-    <tbody><tr><td>{{audit_issue_name_01}}</td><td><span class="mx-metric-tag mx-issue-severity mx-issue-severity-1">{{audit_issue_severity_01}}</span></td><td>{{audit_issue_evidence_01}}</td><td>{{audit_issue_fix_01}}</td></tr><tr><td>{{audit_issue_name_02}}</td><td><span class="mx-metric-tag mx-issue-severity mx-issue-severity-2">{{audit_issue_severity_02}}</span></td><td>{{audit_issue_evidence_02}}</td><td>{{audit_issue_fix_02}}</td></tr><tr><td>{{audit_issue_name_03}}</td><td><span class="mx-metric-tag mx-issue-severity mx-issue-severity-3">{{audit_issue_severity_03}}</span></td><td>{{audit_issue_evidence_03}}</td><td>{{audit_issue_fix_03}}</td></tr><tr><td>{{audit_issue_name_04}}</td><td><span class="mx-metric-tag mx-issue-severity mx-issue-severity-4">{{audit_issue_severity_04}}</span></td><td>{{audit_issue_evidence_04}}</td><td>{{audit_issue_fix_04}}</td></tr><tr><td>{{audit_issue_name_05}}</td><td><span class="mx-metric-tag mx-issue-severity mx-issue-severity-5">{{audit_issue_severity_05}}</span></td><td>{{audit_issue_evidence_05}}</td><td>{{audit_issue_fix_05}}</td></tr></tbody>
-  </table></div></div>
-</section>
-    <div class="mx-two-column">
-<section class="mx-section mx-section-card">
-  <div class="mx-section-head">
-    <span class="mx-label">Findings</span>
-    <h2><span class="mx-static-icon" aria-hidden="true">&#128142;</span>Key findings</h2>
-  </div>
-  <div class="mx-section-body"><div class="mx-finding-list"><article class="mx-inner-card mx-finding-card"><div class="mx-card-index">1</div><div class="mx-placeholder">{{audit_finding_01}}</div></article><article class="mx-inner-card mx-finding-card"><div class="mx-card-index">2</div><div class="mx-placeholder">{{audit_finding_02}}</div></article><article class="mx-inner-card mx-finding-card"><div class="mx-card-index">3</div><div class="mx-placeholder">{{audit_finding_03}}</div></article><article class="mx-inner-card mx-finding-card"><div class="mx-card-index">4</div><div class="mx-placeholder">{{audit_finding_04}}</div></article></div></div>
+  <div class="mx-section-body"><div class="mx-finding-list"><article class="mx-inner-card mx-finding-card"><div class="mx-card-index">1</div><div class="mx-placeholder">{{audit_action_01}}</div></article><article class="mx-inner-card mx-finding-card"><div class="mx-card-index">2</div><div class="mx-placeholder">{{audit_action_02}}</div></article><article class="mx-inner-card mx-finding-card"><div class="mx-card-index">3</div><div class="mx-placeholder">{{audit_action_03}}</div></article><article class="mx-inner-card mx-finding-card"><div class="mx-card-index">4</div><div class="mx-placeholder">{{audit_action_04}}</div></article></div></div>
 </section>
 <section class="mx-section mx-section-card">
   <div class="mx-section-head">
-    <span class="mx-label">Impact</span>
-    <h2><span class="mx-static-icon" aria-hidden="true">&#128269;</span>Reader impact</h2>
+    <h2><span class="mx-static-icon" aria-hidden="true">🔎</span>Long-tail Cluster</h2>
   </div>
-  <div class="mx-section-body"><div class="mx-finding-list"><article class="mx-inner-card mx-finding-card"><div class="mx-card-index">1</div><div class="mx-placeholder">{{audit_impact_01}}</div></article><article class="mx-inner-card mx-finding-card"><div class="mx-card-index">2</div><div class="mx-placeholder">{{audit_impact_02}}</div></article><article class="mx-inner-card mx-finding-card"><div class="mx-card-index">3</div><div class="mx-placeholder">{{audit_impact_03}}</div></article><article class="mx-inner-card mx-finding-card"><div class="mx-card-index">4</div><div class="mx-placeholder">{{audit_impact_04}}</div></article></div></div>
-</section></div>
+  <div class="mx-section-body"><div class="mx-finding-list"><article class="mx-inner-card mx-finding-card"><div class="mx-card-index">1</div><div class="mx-placeholder">{{long_tail_keyword_01}}</div></article><article class="mx-inner-card mx-finding-card"><div class="mx-card-index">2</div><div class="mx-placeholder">{{long_tail_keyword_02}}</div></article><article class="mx-inner-card mx-finding-card"><div class="mx-card-index">3</div><div class="mx-placeholder">{{long_tail_keyword_03}}</div></article><article class="mx-inner-card mx-finding-card"><div class="mx-card-index">4</div><div class="mx-placeholder">{{long_tail_keyword_04}}</div></article><article class="mx-inner-card mx-finding-card"><div class="mx-card-index">5</div><div class="mx-placeholder">{{long_tail_keyword_05}}</div></article></div></div>
+</section>
 <section class="mx-section mx-section-card mx-recommend-card">
-  <div class="mx-section-head">
-    <span class="mx-label">Result</span>
-    
+  <div class="mx-section-body">
+    <h2 class="mx-recommend-title"><span class="mx-static-icon" aria-hidden="true">🏆</span>Final Decision</h2>
+    <div class="mx-placeholder">{{final_recommendation_body}}</div>
   </div>
-  <div class="mx-section-body"><h2 class="mx-recommend-title"><span class="mx-static-icon" aria-hidden="true">&#128640;</span>Final Recommendation</h2><div class="mx-placeholder">{{final_recommendation_body}}</div></div>
 </section></div>
 <footer class="mx-footer">
   <div class="mx-download-group">
@@ -232,49 +226,43 @@ body[data-theme="light"] .mx-score-card-executive .mx-risk-level strong{color:#0
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bhero_pill_01\u007d\u007d",
+      "placeholder": "\u007b\u007bhero_pill_1\u007d\u007d",
       "section": "hero",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bhero_pill_02\u007d\u007d",
+      "placeholder": "\u007b\u007bhero_pill_2\u007d\u007d",
       "section": "hero",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bhero_pill_03\u007d\u007d",
+      "placeholder": "\u007b\u007bhero_pill_3\u007d\u007d",
       "section": "hero",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bhero_pill_04\u007d\u007d",
+      "placeholder": "\u007b\u007bhero_pill_4\u007d\u007d",
       "section": "hero",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bhero_pill_05\u007d\u007d",
+      "placeholder": "\u007b\u007bhero_pill_5\u007d\u007d",
       "section": "hero",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bhero_pill_06\u007d\u007d",
+      "placeholder": "\u007b\u007bhero_pill_6\u007d\u007d",
       "section": "hero",
       "type": "text",
       "required": true
     },
     {
       "placeholder": "\u007b\u007baudit_subject\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_summary\u007d\u007d",
       "section": "audit",
       "type": "text",
       "required": true
@@ -484,170 +472,56 @@ body[data-theme="light"] .mx-score-card-executive .mx-risk-level strong{color:#0
       "required": true
     },
     {
-      "placeholder": "\u007b\u007baudit_issue_name_01\u007d\u007d",
+      "placeholder": "\u007b\u007baudit_action_01\u007d\u007d",
       "section": "audit",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007baudit_issue_severity_01\u007d\u007d",
+      "placeholder": "\u007b\u007baudit_action_02\u007d\u007d",
       "section": "audit",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007baudit_issue_evidence_01\u007d\u007d",
+      "placeholder": "\u007b\u007baudit_action_03\u007d\u007d",
       "section": "audit",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007baudit_issue_fix_01\u007d\u007d",
+      "placeholder": "\u007b\u007baudit_action_04\u007d\u007d",
       "section": "audit",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007baudit_issue_name_02\u007d\u007d",
-      "section": "audit",
+      "placeholder": "\u007b\u007blong_tail_keyword_01\u007d\u007d",
+      "section": "long",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007baudit_issue_severity_02\u007d\u007d",
-      "section": "audit",
+      "placeholder": "\u007b\u007blong_tail_keyword_02\u007d\u007d",
+      "section": "long",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007baudit_issue_evidence_02\u007d\u007d",
-      "section": "audit",
+      "placeholder": "\u007b\u007blong_tail_keyword_03\u007d\u007d",
+      "section": "long",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007baudit_issue_fix_02\u007d\u007d",
-      "section": "audit",
+      "placeholder": "\u007b\u007blong_tail_keyword_04\u007d\u007d",
+      "section": "long",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007baudit_issue_name_03\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_issue_severity_03\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_issue_evidence_03\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_issue_fix_03\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_issue_name_04\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_issue_severity_04\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_issue_evidence_04\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_issue_fix_04\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_issue_name_05\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_issue_severity_05\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_issue_evidence_05\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_issue_fix_05\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_finding_01\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_finding_02\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_finding_03\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_finding_04\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_impact_01\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_impact_02\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_impact_03\u007d\u007d",
-      "section": "audit",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007baudit_impact_04\u007d\u007d",
-      "section": "audit",
+      "placeholder": "\u007b\u007blong_tail_keyword_05\u007d\u007d",
+      "section": "long",
       "type": "text",
       "required": true
     },

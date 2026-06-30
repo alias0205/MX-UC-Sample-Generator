@@ -5,8 +5,8 @@
   --mx-section-bg:#11182b;--mx-inner-bg:#0f172a;--mx-text:#f8fafc;--mx-muted:#aebdd2;
   --mx-shell-border:rgba(255,255,255,.14);--mx-section-border:rgba(255,255,255,.12);--mx-inner-border:rgba(255,255,255,.10);
   --mx-placeholder-bg:rgba(255,255,255,.045);--mx-placeholder-border:rgba(255,255,255,.18);
-  --mx-pill-1:#38bdf8;--mx-pill-2:#a78bfa;--mx-pill-3:#34d399;--mx-pill-4:#fbbf24;
-  --mx-pill-5:#fb7185;--mx-pill-6:#94a3b8;
+  --mx-pill-1:#38bdf8;--mx-pill-2:#a78bfa;--mx-pill-3:#34d399;--mx-pill-4:#f59e0b;
+  --mx-pill-5:#fb7185;--mx-pill-6:#3b82f6;
   --mx-space-xs:6px;--mx-space-sm:10px;--mx-space-md:16px;--mx-space-lg:24px;
   --mx-space-xl:32px;--mx-space-2xl:44px;
 }
@@ -25,8 +25,8 @@ body[data-theme="light"] .mx-brand-logo{filter:brightness(0)}
 .mx-hero{margin-bottom:var(--mx-space-lg)}
 .mx-hero-title{margin:0 0 var(--mx-space-md);font-size:clamp(30px,4vw,44px);line-height:1.05;letter-spacing:-.05em}
 .mx-hero-pills{display:flex;flex-wrap:wrap;gap:10px}
-.mx-pill{--pill-color:var(--mx-pill-1);display:inline-flex;align-items:center;gap:8px;min-height:32px;padding:7px 12px;border-radius:999px;border:1px solid color-mix(in srgb,var(--pill-color) 55%,transparent);background:color-mix(in srgb,var(--pill-color) 14%,var(--mx-inner-bg));color:var(--mx-text);font-size:12px;font-weight:800;white-space:nowrap}
-.mx-pill-dot{width:7px;height:7px;border-radius:50%;background:var(--pill-color);box-shadow:0 0 12px var(--pill-color)}
+.mx-pill{--pill-color:var(--mx-pill-1);display:inline-flex;align-items:center;gap:8px;min-height:32px;padding:7px 12px;border-radius:999px;border:1px solid currentColor;background:color-mix(in srgb,var(--pill-color) 14%,var(--mx-inner-bg));color:var(--pill-color);font-size:12px;font-weight:800;white-space:nowrap}
+.mx-pill-dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 12px currentColor}
 .mx-pill-1{--pill-color:var(--mx-pill-1)}
 .mx-pill-2{--pill-color:var(--mx-pill-2)}
 .mx-pill-3{--pill-color:var(--mx-pill-3)}
@@ -45,6 +45,11 @@ body[data-theme="light"] .mx-brand-logo{filter:brightness(0)}
 .mx-placeholder{display:block;width:100%;min-height:34px;padding:8px 10px;border:1px dashed var(--mx-placeholder-border);border-radius:10px;background:var(--mx-placeholder-bg);color:var(--mx-text);line-height:1.45;overflow-wrap:anywhere;white-space:normal}
 .mx-placeholder-inline{display:inline;overflow-wrap:anywhere}
 .mx-metadata-grid,.mx-strategy-grid,.mx-sequence-grid,.mx-action-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--mx-space-md)}
+.mx-meta-row{display:flex;flex-wrap:wrap;gap:12px;color:var(--mx-text);font-size:15px}
+.mx-summary-chip{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:8px 12px;border-radius:999px;border:1px solid currentColor;background:color-mix(in srgb,currentColor 13%,var(--mx-inner-bg));font-weight:700;line-height:1.2}
+.mx-summary-chip strong{font-weight:900;color:var(--mx-text)}
+.mx-summary-chip .mx-static-icon{width:26px;height:26px;margin-right:0;border-radius:999px;font-size:14px;background:color-mix(in srgb,currentColor 18%,var(--mx-inner-bg))}
+.mx-summary-chip-blue{color:var(--mx-pill-6)}.mx-summary-chip-purple{color:var(--mx-pill-2)}.mx-summary-chip-teal{color:#2dd4bf}
 .mx-inner-card{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;padding:var(--mx-space-md);border:1px solid var(--mx-inner-border);border-radius:18px;background:var(--mx-inner-bg);min-width:0}
 .mx-metadata-card,.mx-sequence-grid .mx-inner-card,.mx-action-grid .mx-inner-card{display:block}
 .mx-card-index{position:relative;display:grid;place-items:center;width:42px;height:42px;border-radius:13px;border:1px solid rgba(125,211,252,.78);background:radial-gradient(circle at 30% 15%,rgba(255,255,255,.30),transparent 34%),linear-gradient(180deg,#38a7e8 0%,#1879c8 52%,#2453b7 100%);color:#fff;font-weight:950;font-size:15px;line-height:1;text-shadow:0 2px 4px rgba(3,20,50,.48);box-shadow:0 0 0 1px rgba(56,189,248,.18),0 9px 20px rgba(14,116,200,.27),inset 0 2px 0 rgba(255,255,255,.34),inset 0 -3px 7px rgba(20,50,130,.30)}
@@ -58,6 +63,8 @@ body[data-theme="light"] .mx-brand-logo{filter:brightness(0)}
 .mx-tag-red{background:rgba(251,113,133,.14);color:#fb7185}.mx-tag-yellow{background:rgba(251,191,36,.14);color:#d99a00}.mx-tag-blue{background:rgba(56,189,248,.14);color:#0ea5e9}.mx-tag-teal{background:rgba(52,211,153,.14);color:#10b981}
 .mx-recommend-card{background:linear-gradient(135deg,color-mix(in srgb,#38bdf8 8%,var(--mx-section-bg)),color-mix(in srgb,#a78bfa 10%,var(--mx-section-bg)));border-color:color-mix(in srgb,#a78bfa 34%,var(--mx-section-border))}
 .mx-recommend-title{display:flex;align-items:center;margin:6px 0 14px;font-size:22px;line-height:1.2;letter-spacing:-.03em}
+.mx-brief-section .mx-section-head,.mx-final-recommendation-section .mx-section-head{margin-bottom:10px}.mx-brief-section .mx-section-head h2,.mx-final-recommendation-section .mx-section-head h2{margin:0}
+.mx-rewrite-strategy-section .mx-section-head,.mx-trigger-table-section .mx-section-head,.mx-sequence-section .mx-section-head,.mx-next-actions-section .mx-section-head{margin-bottom:10px}.mx-rewrite-strategy-section .mx-section-head h2,.mx-trigger-table-section .mx-section-head h2,.mx-sequence-section .mx-section-head h2,.mx-next-actions-section .mx-section-head h2{margin:0}
 .mx-footer{padding:20px 28px 24px;border-top:1px solid var(--mx-shell-border);background:var(--mx-shell-bg)}
 .mx-download-group{display:flex;flex-wrap:wrap;gap:12px}
 .mx-btn{display:flex;align-items:center;gap:10px;padding:12px 18px;border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;border:1px solid transparent;transition:all .25s ease;font-family:var(--mx-font)}
@@ -69,19 +76,18 @@ body[data-theme="light"] .mx-btn{box-shadow:inset 0 1px 0 rgba(255,255,255,.62),
 body[data-theme="light"] .mx-btn-json{background:linear-gradient(180deg,#60a5fa 0%,#3b82f6 48%,#2563eb 100%);border-color:#1d4ed8;color:#fff}
 body[data-theme="light"] .mx-btn-csv{background:linear-gradient(180deg,#fcd34d 0%,#f59e0b 50%,#d97706 100%);border-color:#b45309;color:#fff}
 body[data-theme="light"] .mx-btn-pdf{background:linear-gradient(180deg,#fb7185 0%,#ef4444 50%,#dc2626 100%);border-color:#b91c1c;color:#fff}
-@media(max-width:820px){body{padding:0 10px}.mx-shell{margin:16px auto}.mx-panel{margin:8px}.mx-inner{padding:20px}.mx-metadata-grid,.mx-strategy-grid,.mx-sequence-grid,.mx-action-grid{grid-template-columns:1fr}.mx-pill{white-space:normal}.mx-footer{padding:18px 20px}}
+@media(max-width:820px){body{padding:0 10px}.mx-shell{margin:16px auto}.mx-panel{margin:8px}.mx-inner{padding:20px}.mx-metadata-grid,.mx-strategy-grid,.mx-sequence-grid,.mx-action-grid{grid-template-columns:1fr}.mx-pill,.mx-summary-chip{white-space:normal}.mx-footer{padding:18px 20px}}
 
-.mx-summary-meta,.mx-decision-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.mx-context-pill{display:inline-flex;align-items:center;padding:7px 11px;border:1px solid currentColor;border-radius:999px;font-size:11px;font-weight:800;line-height:1.2;white-space:nowrap}
-.mx-outcome-card{grid-template-columns:minmax(0,1fr) 240px;align-items:center;margin-bottom:var(--mx-space-md)}.mx-outcome-main .mx-label{display:block;margin-bottom:8px}.mx-outcome-main h3{margin:0 0 10px;font-size:21px;line-height:1.25;overflow-wrap:anywhere}.mx-outcome-main .mx-placeholder{font-size:13px}.mx-outcome-confidence{padding:15px;border:1px solid var(--mx-inner-border);border-radius:16px;background:var(--mx-placeholder-bg);text-align:center}.mx-outcome-confidence span,.mx-outcome-confidence small{display:block;color:var(--mx-muted);font-size:11px;font-weight:800;overflow-wrap:anywhere}.mx-outcome-confidence strong{display:block;margin:7px 0;font-size:21px;color:#7dd3fc;overflow-wrap:anywhere}
-.mx-metadata-card{display:block}.mx-metadata-card .mx-label{display:block;margin-bottom:9px}.mx-metadata-card .mx-placeholder{font-size:13px}
-.mx-priority-list{display:grid;gap:14px}.mx-priority-card{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:15px}.mx-priority-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:9px}.mx-priority-head h3{margin:2px 0 0;font-size:17px;line-height:1.3;overflow-wrap:anywhere}.mx-priority-head span,.mx-priority-due{color:#38bdf8;font-size:11px;font-weight:800;overflow-wrap:anywhere}.mx-priority-card .mx-placeholder{font-size:13px}.mx-priority-due{margin-top:9px;color:var(--mx-muted)}
-.mx-roadmap-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--mx-space-md)}.mx-roadmap-card{display:block}.mx-roadmap-phase{display:inline-flex;margin-bottom:12px;padding:6px 9px;border:1px solid rgba(167,139,250,.36);border-radius:999px;background:rgba(167,139,250,.12);color:#a78bfa;font-size:11px;font-weight:800;overflow-wrap:anywhere}.mx-roadmap-card h3{margin:0 0 10px;font-size:16px;line-height:1.3;overflow-wrap:anywhere}.mx-roadmap-card .mx-placeholder{font-size:12px}.mx-roadmap-timing{margin-top:10px;color:var(--mx-muted);font-size:11px;font-weight:800;overflow-wrap:anywhere}
-.mx-measure-card{display:block}.mx-measure-card .mx-label{display:block;margin-bottom:9px;overflow-wrap:anywhere}.mx-measure-card strong{display:block;margin-bottom:10px;font-size:22px;line-height:1.1;color:#7dd3fc;overflow-wrap:anywhere}.mx-measure-card .mx-placeholder{font-size:12px}
-body[data-theme="light"] .mx-outcome-confidence strong,body[data-theme="light"] .mx-measure-card strong{color:#075985}
-.mx-two-column{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--mx-space-lg)}.mx-two-column .mx-section{height:calc(100% - var(--mx-space-lg))}.mx-compact-list{display:grid;gap:12px}.mx-compact-card{align-items:start}.mx-compact-card .mx-placeholder{font-size:13px}
-.mx-final-section{background:linear-gradient(135deg,color-mix(in srgb,#38bdf8 6%,var(--mx-section-bg)),color-mix(in srgb,#a78bfa 7%,var(--mx-section-bg)))}
-@media(max-width:980px){.mx-roadmap-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:820px){.mx-outcome-card,.mx-two-column,.mx-roadmap-grid{grid-template-columns:1fr}.mx-priority-head{display:grid}.mx-outcome-confidence{width:100%}}
+.mx-title-eyebrow{display:block;margin-bottom:8px;font-size:11px;line-height:1.2;font-weight:800;letter-spacing:.08em}.mx-summary-title{margin:0 0 16px;font-size:36px;line-height:1.08;font-weight:900;overflow-wrap:anywhere}.mx-context-strip{grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--mx-space-md)}.mx-context-card{display:block}.mx-context-card .mx-label{display:block;margin-bottom:8px}.mx-context-value{font-size:14px;line-height:1.45;font-weight:400}
+.mx-section-head h2{margin:0}.mx-section-head h2 .mx-static-icon{display:inline-grid;place-items:center;width:28px;height:28px;margin-right:10px;border:1px solid var(--mx-inner-border);border-radius:10px;background:var(--mx-placeholder-bg)}
+.mx-summary-card .mx-section-head h2{font-size:20px;line-height:1.25}.mx-summary-copy{font-size:15px;line-height:1.78;font-weight:400}
+.mx-metric-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.mx-metric-card{display:block}.mx-metric-card .mx-label{display:block;margin-bottom:9px}.mx-metric-value{display:block;margin-bottom:10px;font-size:28px;line-height:1.05;font-weight:900;color:#7dd3fc;overflow-wrap:anywhere}.mx-metric-card .mx-placeholder{font-size:13px;line-height:1.6}
+body[data-theme="light"] .mx-metric-value{color:#075985}
+.mx-idea-card{display:block}.mx-idea-card h3,.mx-insight-card h3,.mx-pipeline-step h3{margin:0 0 9px;font-size:18px;line-height:1.3;font-weight:800;overflow-wrap:anywhere}.mx-idea-card .mx-placeholder,.mx-insight-card .mx-placeholder,.mx-pipeline-step .mx-placeholder,.mx-compact-card .mx-placeholder{font-size:14px;line-height:1.7}
+.mx-insight-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--mx-space-md)}.mx-insight-card{display:block}
+.mx-pipeline-list{display:grid;gap:14px}.mx-pipeline-step{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:15px}
+.mx-two-column{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--mx-space-lg)}.mx-two-column .mx-section{height:calc(100% - var(--mx-space-lg))}.mx-compact-list{display:grid;gap:12px}.mx-compact-card{align-items:start}
+@media(max-width:980px){.mx-context-strip,.mx-metric-grid,.mx-insight-grid,.mx-two-column{grid-template-columns:1fr}}
 </style></head><body data-theme="dark"><main class="mx-shell" data-template-id="MXT_008" data-theme="{{theme}}" data-uc="theme"><section class="mx-panel"><div class="mx-inner">
 <div class="mx-topbar">
   
@@ -94,86 +100,20 @@ body[data-theme="light"] .mx-outcome-confidence strong,body[data-theme="light"] 
 <header class="mx-hero">
   <h1 class="mx-hero-title"><span class="mx-icon-placeholder" aria-hidden="true">{{hero_icon}}</span><span class="mx-placeholder-inline">{{hero_title}}</span></h1>
   <div class="mx-hero-pills">
-    <span class="mx-pill mx-pill-1"><span class="mx-pill-dot"></span>{{hero_pill_01}}</span>
-    <span class="mx-pill mx-pill-2"><span class="mx-pill-dot"></span>{{hero_pill_02}}</span>
-    <span class="mx-pill mx-pill-3"><span class="mx-pill-dot"></span>{{hero_pill_03}}</span>
-    <span class="mx-pill mx-pill-4"><span class="mx-pill-dot"></span>{{hero_pill_04}}</span>
-    <span class="mx-pill mx-pill-5"><span class="mx-pill-dot"></span>{{hero_pill_05}}</span>
-    <span class="mx-pill mx-pill-6"><span class="mx-pill-dot"></span>{{hero_pill_06}}</span>
+    <span class="mx-pill mx-pill-1"><span class="mx-pill-dot"></span>{{hero_pill_1}}</span>
+    <span class="mx-pill mx-pill-2"><span class="mx-pill-dot"></span>{{hero_pill_2}}</span>
+    <span class="mx-pill mx-pill-3"><span class="mx-pill-dot"></span>{{hero_pill_3}}</span>
+    <span class="mx-pill mx-pill-4"><span class="mx-pill-dot"></span>{{hero_pill_4}}</span>
+    <span class="mx-pill mx-pill-5"><span class="mx-pill-dot"></span>{{hero_pill_5}}</span>
+    <span class="mx-pill mx-pill-6"><span class="mx-pill-dot"></span>{{hero_pill_6}}</span>
   </div>
-</header><div class="mx-divider"></div>
-<section class="mx-section mx-section-card mx-summary-section">
-  <div class="mx-section-head">
-    <span class="mx-label">Executive summary</span>
-    
-  </div>
-  <div class="mx-section-body"><h2 class="mx-summary-title">{{executive_title}}</h2>
-    <div class="mx-placeholder">{{executive_summary}}</div>
-    <div class="mx-summary-meta">
-      <span class="mx-context-pill mx-tag-blue">{{executive_scope}}</span>
-      <span class="mx-context-pill mx-tag-teal">{{executive_priority}}</span>
-      <span class="mx-context-pill mx-tag-yellow">{{executive_horizon}}</span>
-    </div></div>
-</section>
-<section class="mx-section mx-section-card">
-  <div class="mx-section-head">
-    <span class="mx-label">Outcome</span>
-    <h2><span class="mx-static-icon" aria-hidden="true">&#127919;</span>Recommended outcome</h2>
-  </div>
-  <div class="mx-section-body"><div class="mx-outcome-card mx-inner-card">
-    <div class="mx-outcome-main"><span class="mx-label">Decision</span><h3>{{outcome_decision}}</h3><div class="mx-placeholder">{{outcome_rationale}}</div></div>
-    <div class="mx-outcome-confidence"><span>Confidence</span><strong>{{outcome_conf}}</strong><small>{{outcome_status}}</small></div>
-  </div>
-  <div class="mx-metadata-grid"><article class="mx-inner-card mx-metadata-card"><span class="mx-label">impact</span><div class="mx-placeholder">{{outcome_impact}}</div></article><article class="mx-inner-card mx-metadata-card"><span class="mx-label">effort</span><div class="mx-placeholder">{{outcome_effort}}</div></article><article class="mx-inner-card mx-metadata-card"><span class="mx-label">timing</span><div class="mx-placeholder">{{outcome_timing}}</div></article></div></div>
-</section>
-<section class="mx-section mx-section-card">
-  <div class="mx-section-head">
-    <span class="mx-label">Priorities</span>
-    <h2><span class="mx-static-icon" aria-hidden="true">&#128204;</span>Priority actions</h2>
-  </div>
-  <div class="mx-section-body"><div class="mx-priority-list"><article class="mx-inner-card mx-priority-card"><div class="mx-card-index">1</div><div><div class="mx-priority-head"><h3>{{priority_title_01}}</h3><span>{{priority_owner_01}}</span></div><div class="mx-placeholder">{{priority_action_01}}</div><div class="mx-priority-due">{{priority_timing_01}}</div></div></article><article class="mx-inner-card mx-priority-card"><div class="mx-card-index">2</div><div><div class="mx-priority-head"><h3>{{priority_title_02}}</h3><span>{{priority_owner_02}}</span></div><div class="mx-placeholder">{{priority_action_02}}</div><div class="mx-priority-due">{{priority_timing_02}}</div></div></article><article class="mx-inner-card mx-priority-card"><div class="mx-card-index">3</div><div><div class="mx-priority-head"><h3>{{priority_title_03}}</h3><span>{{priority_owner_03}}</span></div><div class="mx-placeholder">{{priority_action_03}}</div><div class="mx-priority-due">{{priority_timing_03}}</div></div></article><article class="mx-inner-card mx-priority-card"><div class="mx-card-index">4</div><div><div class="mx-priority-head"><h3>{{priority_title_04}}</h3><span>{{priority_owner_04}}</span></div><div class="mx-placeholder">{{priority_action_04}}</div><div class="mx-priority-due">{{priority_timing_04}}</div></div></article></div></div>
-</section>
-<section class="mx-section mx-section-card">
-  <div class="mx-section-head">
-    <span class="mx-label">Roadmap</span>
-    <h2><span class="mx-static-icon" aria-hidden="true">&#128640;</span>Implementation roadmap</h2>
-  </div>
-  <div class="mx-section-body"><div class="mx-roadmap-grid"><article class="mx-inner-card mx-roadmap-card"><span class="mx-roadmap-phase">{{roadmap_phase_01}}</span><h3>{{roadmap_title_01}}</h3><div class="mx-placeholder">{{roadmap_body_01}}</div><div class="mx-roadmap-timing">{{roadmap_timing_01}}</div></article><article class="mx-inner-card mx-roadmap-card"><span class="mx-roadmap-phase">{{roadmap_phase_02}}</span><h3>{{roadmap_title_02}}</h3><div class="mx-placeholder">{{roadmap_body_02}}</div><div class="mx-roadmap-timing">{{roadmap_timing_02}}</div></article><article class="mx-inner-card mx-roadmap-card"><span class="mx-roadmap-phase">{{roadmap_phase_03}}</span><h3>{{roadmap_title_03}}</h3><div class="mx-placeholder">{{roadmap_body_03}}</div><div class="mx-roadmap-timing">{{roadmap_timing_03}}</div></article><article class="mx-inner-card mx-roadmap-card"><span class="mx-roadmap-phase">{{roadmap_phase_04}}</span><h3>{{roadmap_title_04}}</h3><div class="mx-placeholder">{{roadmap_body_04}}</div><div class="mx-roadmap-timing">{{roadmap_timing_04}}</div></article></div></div>
-</section>
-<section class="mx-section mx-section-card">
-  <div class="mx-section-head">
-    <span class="mx-label">Measures</span>
-    <h2><span class="mx-static-icon" aria-hidden="true">&#128200;</span>Success measures</h2>
-  </div>
-  <div class="mx-section-body"><div class="mx-metadata-grid"><article class="mx-inner-card mx-measure-card"><span class="mx-label">{{measure_label_01}}</span><strong>{{measure_target_01}}</strong><div class="mx-placeholder">{{measure_context_01}}</div></article><article class="mx-inner-card mx-measure-card"><span class="mx-label">{{measure_label_02}}</span><strong>{{measure_target_02}}</strong><div class="mx-placeholder">{{measure_context_02}}</div></article><article class="mx-inner-card mx-measure-card"><span class="mx-label">{{measure_label_03}}</span><strong>{{measure_target_03}}</strong><div class="mx-placeholder">{{measure_context_03}}</div></article></div></div>
-</section>
-    <div class="mx-two-column">
-<section class="mx-section mx-section-card">
-  <div class="mx-section-head">
-    <span class="mx-label">Dependencies</span>
-    <h2><span class="mx-static-icon" aria-hidden="true">&#128279;</span>Key dependencies</h2>
-  </div>
-  <div class="mx-section-body"><div class="mx-compact-list"><article class="mx-inner-card mx-compact-card"><div class="mx-card-index">1</div><div class="mx-placeholder">{{dependency_01}}</div></article><article class="mx-inner-card mx-compact-card"><div class="mx-card-index">2</div><div class="mx-placeholder">{{dependency_02}}</div></article><article class="mx-inner-card mx-compact-card"><div class="mx-card-index">3</div><div class="mx-placeholder">{{dependency_03}}</div></article></div></div>
-</section>
-<section class="mx-section mx-section-card">
-  <div class="mx-section-head">
-    <span class="mx-label">Risks</span>
-    <h2><span class="mx-static-icon" aria-hidden="true">&#128737;</span>Execution risks</h2>
-  </div>
-  <div class="mx-section-body"><div class="mx-compact-list"><article class="mx-inner-card mx-compact-card"><div class="mx-card-index">1</div><div class="mx-placeholder">{{execution_risk_01}}</div></article><article class="mx-inner-card mx-compact-card"><div class="mx-card-index">2</div><div class="mx-placeholder">{{execution_risk_02}}</div></article><article class="mx-inner-card mx-compact-card"><div class="mx-card-index">3</div><div class="mx-placeholder">{{execution_risk_03}}</div></article></div></div>
-</section></div>
-<section class="mx-section mx-section-card mx-final-section">
-  <div class="mx-section-head">
-    <span class="mx-label">Final decision</span>
-    <h2><span class="mx-static-icon" aria-hidden="true">&#10024;</span>Executive direction</h2>
-  </div>
-  <div class="mx-section-body"><div class="mx-placeholder">{{final_decision}}</div>
-    <div class="mx-decision-meta">
-      <span class="mx-context-pill mx-tag-blue">{{decision_owner}}</span>
-      <span class="mx-context-pill mx-tag-teal">{{decision_next_review}}</span>
-      <span class="mx-context-pill mx-tag-yellow">{{decision_success_gate}}</span>
-    </div></div>
-</section></div>
+</header><div class="mx-divider"></div><section class="mx-section mx-section-card mx-automation-brief"><div class="mx-section-body">
+    <span class="mx-label mx-title-eyebrow">Automation brief</span>
+    <h2 class="mx-summary-title">{{automation_title}}</h2>
+    <div class="mx-metadata-grid mx-context-strip">
+      <article class="mx-inner-card mx-context-card"><span class="mx-label">Use Case</span><div class="mx-context-value">{{automation_use_case}}</div></article><article class="mx-inner-card mx-context-card"><span class="mx-label">Stack</span><div class="mx-context-value">{{automation_stack}}</div></article><article class="mx-inner-card mx-context-card"><span class="mx-label">Constraint</span><div class="mx-context-value">{{automation_constraint}}</div></article><article class="mx-inner-card mx-context-card"><span class="mx-label">Confidence</span><div class="mx-context-value">{{automation_confidence}}</div></article><article class="mx-inner-card mx-context-card"><span class="mx-label">Setup</span><div class="mx-context-value">{{automation_setup}}</div></article>
+    </div></div></section><section class="mx-section mx-section-card mx-summary-card"><div class="mx-section-head"><h2><span class="mx-static-icon" aria-hidden="true">&#128161;</span>{{summary_title}}</h2></div><div class="mx-section-body"><div class="mx-summary-copy">{{summary_body}}</div></div></section><section class="mx-section mx-section-card"><div class="mx-section-head"><h2><span class="mx-static-icon" aria-hidden="true">&#128200;</span>Key metrics</h2></div><div class="mx-section-body"><div class="mx-metadata-grid mx-metric-grid"><article class="mx-inner-card mx-metric-card"><span class="mx-label">{{metric_label_01}}</span><strong class="mx-metric-value">{{metric_value_01}}</strong><div class="mx-placeholder">{{metric_body_01}}</div></article><article class="mx-inner-card mx-metric-card"><span class="mx-label">{{metric_label_02}}</span><strong class="mx-metric-value">{{metric_value_02}}</strong><div class="mx-placeholder">{{metric_body_02}}</div></article><article class="mx-inner-card mx-metric-card"><span class="mx-label">{{metric_label_03}}</span><strong class="mx-metric-value">{{metric_value_03}}</strong><div class="mx-placeholder">{{metric_body_03}}</div></article></div></div></section><section class="mx-section mx-section-card"><div class="mx-section-head"><h2><span class="mx-static-icon" aria-hidden="true">&#128269;</span>Insight blocks</h2></div><div class="mx-section-body"><div class="mx-insight-grid"><article class="mx-inner-card mx-insight-card"><h3>{{insight_title_01}}</h3><div class="mx-placeholder">{{insight_body_01}}</div></article><article class="mx-inner-card mx-insight-card"><h3>{{insight_title_02}}</h3><div class="mx-placeholder">{{insight_body_02}}</div></article><article class="mx-inner-card mx-insight-card"><h3>{{insight_title_03}}</h3><div class="mx-placeholder">{{insight_body_03}}</div></article></div></div></section><section class="mx-section mx-section-card"><div class="mx-section-head"><h2><span class="mx-static-icon" aria-hidden="true">&#9881;</span>Workflow explanation</h2></div><div class="mx-section-body"><div class="mx-summary-copy">{{workflow_explanation}}</div></div></section><section class="mx-section mx-section-card"><div class="mx-section-head"><h2><span class="mx-static-icon" aria-hidden="true">&#128260;</span>Full automation pipeline</h2></div><div class="mx-section-body"><div class="mx-pipeline-list"><article class="mx-inner-card mx-pipeline-step"><div class="mx-card-index">1</div><div><h3>{{pipeline_step_title_01}}</h3><div class="mx-placeholder">{{pipeline_step_body_01}}</div></div></article><article class="mx-inner-card mx-pipeline-step"><div class="mx-card-index">2</div><div><h3>{{pipeline_step_title_02}}</h3><div class="mx-placeholder">{{pipeline_step_body_02}}</div></div></article><article class="mx-inner-card mx-pipeline-step"><div class="mx-card-index">3</div><div><h3>{{pipeline_step_title_03}}</h3><div class="mx-placeholder">{{pipeline_step_body_03}}</div></div></article><article class="mx-inner-card mx-pipeline-step"><div class="mx-card-index">4</div><div><h3>{{pipeline_step_title_04}}</h3><div class="mx-placeholder">{{pipeline_step_body_04}}</div></div></article><article class="mx-inner-card mx-pipeline-step"><div class="mx-card-index">5</div><div><h3>{{pipeline_step_title_05}}</h3><div class="mx-placeholder">{{pipeline_step_body_05}}</div></div></article></div></div></section>
+    <div class="mx-two-column"><section class="mx-section mx-section-card"><div class="mx-section-head"><h2><span class="mx-static-icon" aria-hidden="true">&#128640;</span>Recommendations</h2></div><div class="mx-section-body"><div class="mx-compact-list"><article class="mx-inner-card mx-compact-card"><div class="mx-card-index">1</div><div class="mx-placeholder">{{recommendation_01}}</div></article><article class="mx-inner-card mx-compact-card"><div class="mx-card-index">2</div><div class="mx-placeholder">{{recommendation_02}}</div></article><article class="mx-inner-card mx-compact-card"><div class="mx-card-index">3</div><div class="mx-placeholder">{{recommendation_03}}</div></article></div></div></section><section class="mx-section mx-section-card"><div class="mx-section-head"><h2><span class="mx-static-icon" aria-hidden="true">&#9888;</span>Risks / Opportunities</h2></div><div class="mx-section-body"><div class="mx-compact-list"><article class="mx-inner-card mx-compact-card"><div class="mx-card-index">1</div><div class="mx-placeholder">{{risk_opportunity_01}}</div></article><article class="mx-inner-card mx-compact-card"><div class="mx-card-index">2</div><div class="mx-placeholder">{{risk_opportunity_02}}</div></article><article class="mx-inner-card mx-compact-card"><div class="mx-card-index">3</div><div class="mx-placeholder">{{risk_opportunity_03}}</div></article></div></div></section></div></div>
 <footer class="mx-footer">
   <div class="mx-download-group">
     <button class="mx-btn mx-btn-json" data-format="json" type="button"><span class="mx-btn-icon">📦</span><span class="mx-btn-label">Download JSON</span></button>
@@ -203,416 +143,278 @@ body[data-theme="light"] .mx-outcome-confidence strong,body[data-theme="light"] 
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bhero_pill_01\u007d\u007d",
+      "placeholder": "\u007b\u007bhero_pill_1\u007d\u007d",
       "section": "hero",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bhero_pill_02\u007d\u007d",
+      "placeholder": "\u007b\u007bhero_pill_2\u007d\u007d",
       "section": "hero",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bhero_pill_03\u007d\u007d",
+      "placeholder": "\u007b\u007bhero_pill_3\u007d\u007d",
       "section": "hero",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bhero_pill_04\u007d\u007d",
+      "placeholder": "\u007b\u007bhero_pill_4\u007d\u007d",
       "section": "hero",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bhero_pill_05\u007d\u007d",
+      "placeholder": "\u007b\u007bhero_pill_5\u007d\u007d",
       "section": "hero",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bhero_pill_06\u007d\u007d",
+      "placeholder": "\u007b\u007bhero_pill_6\u007d\u007d",
       "section": "hero",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bexecutive_title\u007d\u007d",
-      "section": "executive",
+      "placeholder": "\u007b\u007bautomation_title\u007d\u007d",
+      "section": "automation",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bexecutive_summary\u007d\u007d",
-      "section": "executive",
+      "placeholder": "\u007b\u007bautomation_use_case\u007d\u007d",
+      "section": "automation",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bexecutive_scope\u007d\u007d",
-      "section": "executive",
+      "placeholder": "\u007b\u007bautomation_stack\u007d\u007d",
+      "section": "automation",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bexecutive_priority\u007d\u007d",
-      "section": "executive",
+      "placeholder": "\u007b\u007bautomation_constraint\u007d\u007d",
+      "section": "automation",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bexecutive_horizon\u007d\u007d",
-      "section": "executive",
+      "placeholder": "\u007b\u007bautomation_confidence\u007d\u007d",
+      "section": "automation",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007boutcome_decision\u007d\u007d",
-      "section": "outcome",
+      "placeholder": "\u007b\u007bautomation_setup\u007d\u007d",
+      "section": "automation",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007boutcome_rationale\u007d\u007d",
-      "section": "outcome",
+      "placeholder": "\u007b\u007bsummary_title\u007d\u007d",
+      "section": "summary",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007boutcome_conf\u007d\u007d",
-      "section": "outcome",
+      "placeholder": "\u007b\u007bsummary_body\u007d\u007d",
+      "section": "summary",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007boutcome_status\u007d\u007d",
-      "section": "outcome",
+      "placeholder": "\u007b\u007bmetric_label_01\u007d\u007d",
+      "section": "metric",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007boutcome_impact\u007d\u007d",
-      "section": "outcome",
+      "placeholder": "\u007b\u007bmetric_value_01\u007d\u007d",
+      "section": "metric",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007boutcome_effort\u007d\u007d",
-      "section": "outcome",
+      "placeholder": "\u007b\u007bmetric_body_01\u007d\u007d",
+      "section": "metric",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007boutcome_timing\u007d\u007d",
-      "section": "outcome",
+      "placeholder": "\u007b\u007bmetric_label_02\u007d\u007d",
+      "section": "metric",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bpriority_title_01\u007d\u007d",
-      "section": "priority",
+      "placeholder": "\u007b\u007bmetric_value_02\u007d\u007d",
+      "section": "metric",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bpriority_owner_01\u007d\u007d",
-      "section": "priority",
+      "placeholder": "\u007b\u007bmetric_body_02\u007d\u007d",
+      "section": "metric",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bpriority_action_01\u007d\u007d",
-      "section": "priority",
+      "placeholder": "\u007b\u007bmetric_label_03\u007d\u007d",
+      "section": "metric",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bpriority_timing_01\u007d\u007d",
-      "section": "priority",
+      "placeholder": "\u007b\u007bmetric_value_03\u007d\u007d",
+      "section": "metric",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bpriority_title_02\u007d\u007d",
-      "section": "priority",
+      "placeholder": "\u007b\u007bmetric_body_03\u007d\u007d",
+      "section": "metric",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bpriority_owner_02\u007d\u007d",
-      "section": "priority",
+      "placeholder": "\u007b\u007binsight_title_01\u007d\u007d",
+      "section": "insight",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bpriority_action_02\u007d\u007d",
-      "section": "priority",
+      "placeholder": "\u007b\u007binsight_body_01\u007d\u007d",
+      "section": "insight",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bpriority_timing_02\u007d\u007d",
-      "section": "priority",
+      "placeholder": "\u007b\u007binsight_title_02\u007d\u007d",
+      "section": "insight",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bpriority_title_03\u007d\u007d",
-      "section": "priority",
+      "placeholder": "\u007b\u007binsight_body_02\u007d\u007d",
+      "section": "insight",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bpriority_owner_03\u007d\u007d",
-      "section": "priority",
+      "placeholder": "\u007b\u007binsight_title_03\u007d\u007d",
+      "section": "insight",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bpriority_action_03\u007d\u007d",
-      "section": "priority",
+      "placeholder": "\u007b\u007binsight_body_03\u007d\u007d",
+      "section": "insight",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bpriority_timing_03\u007d\u007d",
-      "section": "priority",
+      "placeholder": "\u007b\u007bworkflow_explanation\u007d\u007d",
+      "section": "workflow",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bpriority_title_04\u007d\u007d",
-      "section": "priority",
+      "placeholder": "\u007b\u007bpipeline_step_title_01\u007d\u007d",
+      "section": "pipeline",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bpriority_owner_04\u007d\u007d",
-      "section": "priority",
+      "placeholder": "\u007b\u007bpipeline_step_body_01\u007d\u007d",
+      "section": "pipeline",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bpriority_action_04\u007d\u007d",
-      "section": "priority",
+      "placeholder": "\u007b\u007bpipeline_step_title_02\u007d\u007d",
+      "section": "pipeline",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bpriority_timing_04\u007d\u007d",
-      "section": "priority",
+      "placeholder": "\u007b\u007bpipeline_step_body_02\u007d\u007d",
+      "section": "pipeline",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007broadmap_phase_01\u007d\u007d",
-      "section": "roadmap",
+      "placeholder": "\u007b\u007bpipeline_step_title_03\u007d\u007d",
+      "section": "pipeline",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007broadmap_title_01\u007d\u007d",
-      "section": "roadmap",
+      "placeholder": "\u007b\u007bpipeline_step_body_03\u007d\u007d",
+      "section": "pipeline",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007broadmap_body_01\u007d\u007d",
-      "section": "roadmap",
+      "placeholder": "\u007b\u007bpipeline_step_title_04\u007d\u007d",
+      "section": "pipeline",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007broadmap_timing_01\u007d\u007d",
-      "section": "roadmap",
+      "placeholder": "\u007b\u007bpipeline_step_body_04\u007d\u007d",
+      "section": "pipeline",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007broadmap_phase_02\u007d\u007d",
-      "section": "roadmap",
+      "placeholder": "\u007b\u007bpipeline_step_title_05\u007d\u007d",
+      "section": "pipeline",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007broadmap_title_02\u007d\u007d",
-      "section": "roadmap",
+      "placeholder": "\u007b\u007bpipeline_step_body_05\u007d\u007d",
+      "section": "pipeline",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007broadmap_body_02\u007d\u007d",
-      "section": "roadmap",
+      "placeholder": "\u007b\u007brecommendation_01\u007d\u007d",
+      "section": "recommendation",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007broadmap_timing_02\u007d\u007d",
-      "section": "roadmap",
+      "placeholder": "\u007b\u007brecommendation_02\u007d\u007d",
+      "section": "recommendation",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007broadmap_phase_03\u007d\u007d",
-      "section": "roadmap",
+      "placeholder": "\u007b\u007brecommendation_03\u007d\u007d",
+      "section": "recommendation",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007broadmap_title_03\u007d\u007d",
-      "section": "roadmap",
+      "placeholder": "\u007b\u007brisk_opportunity_01\u007d\u007d",
+      "section": "risk",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007broadmap_body_03\u007d\u007d",
-      "section": "roadmap",
+      "placeholder": "\u007b\u007brisk_opportunity_02\u007d\u007d",
+      "section": "risk",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007broadmap_timing_03\u007d\u007d",
-      "section": "roadmap",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007broadmap_phase_04\u007d\u007d",
-      "section": "roadmap",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007broadmap_title_04\u007d\u007d",
-      "section": "roadmap",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007broadmap_body_04\u007d\u007d",
-      "section": "roadmap",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007broadmap_timing_04\u007d\u007d",
-      "section": "roadmap",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bmeasure_label_01\u007d\u007d",
-      "section": "measure",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bmeasure_target_01\u007d\u007d",
-      "section": "measure",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bmeasure_context_01\u007d\u007d",
-      "section": "measure",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bmeasure_label_02\u007d\u007d",
-      "section": "measure",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bmeasure_target_02\u007d\u007d",
-      "section": "measure",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bmeasure_context_02\u007d\u007d",
-      "section": "measure",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bmeasure_label_03\u007d\u007d",
-      "section": "measure",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bmeasure_target_03\u007d\u007d",
-      "section": "measure",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bmeasure_context_03\u007d\u007d",
-      "section": "measure",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bdependency_01\u007d\u007d",
-      "section": "dependency",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bdependency_02\u007d\u007d",
-      "section": "dependency",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bdependency_03\u007d\u007d",
-      "section": "dependency",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bexecution_risk_01\u007d\u007d",
-      "section": "execution",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bexecution_risk_02\u007d\u007d",
-      "section": "execution",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bexecution_risk_03\u007d\u007d",
-      "section": "execution",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bfinal_decision\u007d\u007d",
-      "section": "final",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bdecision_owner\u007d\u007d",
-      "section": "decision",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bdecision_next_review\u007d\u007d",
-      "section": "decision",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bdecision_success_gate\u007d\u007d",
-      "section": "decision",
+      "placeholder": "\u007b\u007brisk_opportunity_03\u007d\u007d",
+      "section": "risk",
       "type": "text",
       "required": true
     }

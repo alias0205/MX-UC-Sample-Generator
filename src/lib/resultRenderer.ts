@@ -250,7 +250,8 @@ export function renderResultHtml(
   templateId: string,
   theme: 'light' | 'dark',
   data: UCResult,
-  tool?: MXTool
+  tool?: MXTool,
+  mappedPlaceholders?: Record<string, string>
 ): string {
   const normalizedUcId = ucId.match(/UC[123]/i)?.[0].toUpperCase() as 'UC1' | 'UC2' | 'UC3' | undefined;
   const templateFile = normalizedUcId ? getHtmlTemplateFile(templateId, normalizedUcId, theme) : null;
@@ -266,6 +267,7 @@ export function renderResultHtml(
     theme,
     data,
     tool,
+    mappedPlaceholders,
   });
 }
 
@@ -276,13 +278,18 @@ interface RenderContext {
   theme: 'light' | 'dark';
   data: UCResult;
   tool?: MXTool;
+  mappedPlaceholders?: Record<string, string>;
 }
 
 function renderDynamicTemplateHtml(html: string, context: RenderContext): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
   const placeholders = createPlaceholderMap(context);
-  populateTemplatePlaceholders(html, placeholders, context);
+  if (context.mappedPlaceholders) {
+    applyMappedPlaceholders(placeholders, context.mappedPlaceholders, context);
+  } else {
+    populateTemplatePlaceholders(html, placeholders, context);
+  }
 
   doc.body.dataset.templateId = context.templateId;
   doc.body.dataset.theme = context.theme;
@@ -299,6 +306,41 @@ function renderDynamicTemplateHtml(html: string, context: RenderContext): string
   attachDownloadActions(doc, context);
 
   return `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`;
+}
+
+function applyMappedPlaceholders(
+  placeholders: Record<string, string>,
+  mappedPlaceholders: Record<string, string>,
+  context: RenderContext
+): void {
+  Object.assign(placeholders, mappedPlaceholders);
+
+  getHeroPillValues(context).forEach((value, offset) => {
+    const index = offset + 1;
+    placeholders[`hero_pill_${index}`] = value;
+    placeholders[`hero_pill_${String(index).padStart(2, '0')}`] = value;
+    placeholders[`hero_badge_${index}`] = value;
+    placeholders[`hero_badge_${String(index).padStart(2, '0')}`] = value;
+  });
+
+  applyScorePlaceholders(placeholders, context);
+
+  for (let index = 1; index <= 8; index += 1) {
+    const padded = String(index).padStart(2, '0');
+    const shortStatusName = `dimension_status_${index}`;
+    const paddedStatusName = `dimension_status_${padded}`;
+    const shortValueName = `dimension_value_${index}`;
+    const paddedValueName = `dimension_value_${padded}`;
+    const shortNameName = `dimension_name_${index}`;
+    const paddedNameName = `dimension_name_${padded}`;
+    const status = mappedPlaceholders[paddedStatusName] || mappedPlaceholders[shortStatusName] || placeholders[paddedStatusName] || placeholders[shortStatusName];
+    const value = placeholders[paddedValueName] || placeholders[shortValueName];
+    const name = placeholders[paddedNameName] || placeholders[shortNameName];
+    const normalizedStatus = normalizeDimensionStatus(status, value, name);
+
+    placeholders[shortStatusName] = normalizedStatus;
+    placeholders[paddedStatusName] = normalizedStatus;
+  }
 }
 
 function attachDownloadActions(doc: Document, context: RenderContext): void {
@@ -369,6 +411,21 @@ function createPlaceholderMap({ ucId, commandSlug, templateId, theme, data, tool
   const decision = getDecision(data);
   const score = getScore(data);
   const modeLabel = getModeLabel(ucId);
+  const subcategory = findResultValue(data, /^(subcategory|subcategories|category)$/i)
+    || tool?.subcategories
+    || tool?.category
+    || 'MarketXtractor';
+  const confidence = findResultValue(data, /^confidence$/i)
+    || stats.find(stat => /confidence/i.test(stat.label))?.value
+    || 'Not provided';
+  const riskLevel = findResultValue(data, /^(risk|risk_level|risk_status)$/i)
+    || stats.find(stat => /risk/i.test(stat.label))?.value
+    || 'Not provided';
+  const resultMode = findResultValue(data, /^(response_mode|mode)$/i) || modeLabel;
+  const engineVersion = findResultValue(data, /^(engine|engine_version|result_engine)$/i)
+    || tool?.result_engine
+    || 'AI Engine v1';
+  const toolId = findResultValue(data, /^tool_id$/i) || tool?.id || commandSlug;
 
   const map: Record<string, string> = {
     theme,
@@ -380,20 +437,22 @@ function createPlaceholderMap({ ucId, commandSlug, templateId, theme, data, tool
     hero_icon: tool?.icon_emoji || '⚡',
     hero_title: data.summary_card.title || tool?.tool_name || commandSlug,
     tool_title: data.summary_card.title || tool?.tool_name || commandSlug,
-    tool_id: tool?.id || commandSlug,
-    pill_tool_id: tool?.id || commandSlug,
-    pill_subcategory: tool?.subcategories || tool?.category || 'MarketXtractor',
+    tool_id: toolId,
+    pill_tool_id: toolId,
+    pill_subcategory: subcategory,
     pill_confidence: getConfidenceLabel(data),
     pill_risk_status: getRiskLabel(data),
-    pill_risk_level: getRiskLabel(data),
-    pill_mode: modeLabel,
-    engine_version: tool?.result_engine || 'AI Engine v1',
-    pill_engine_version: tool?.result_engine || 'AI Engine v1',
+    pill_risk_level: normalizeRiskLabel(riskLevel),
+    pill_mode: `Mode: ${resultMode}`,
+    engine_version: engineVersion,
+    pill_engine_version: engineVersion,
     primary_label: data.summary_card.subtitle || 'Result Summary',
     section_label: data.summary_card.subtitle || 'Result Summary',
     primary_result_title: data.summary_card.title || tool?.tool_name || commandSlug,
     score_value: score,
+    score_progress: score,
     score_label: 'Confidence',
+    score_status: getMetricStatus(score),
     risk_level: getRiskLabel(data),
     section_header_1: 'Key Metrics',
     section_header_2: 'Status',
@@ -417,14 +476,11 @@ function createPlaceholderMap({ ucId, commandSlug, templateId, theme, data, tool
     summary_body: data.summary_card.subtitle || 'Result summary',
   };
 
-  const heroPills = [
-    ...stats.map(stat => `${stat.label}: ${stat.value}`),
-    tool?.subcategories || tool?.category || 'MarketXtractor',
-    `Mode: ${modeLabel}`,
-    tool?.result_engine || 'AI Engine v1',
-  ];
+  const heroPills = getHeroPillValues({ ucId, commandSlug, templateId, theme, data, tool });
   for (let index = 0; index < 6; index += 1) {
-    map[`hero_pill_${String(index + 1).padStart(2, '0')}`] = heroPills[index] || heroPills[index % heroPills.length];
+    const value = heroPills[index] || heroPills[index % heroPills.length];
+    map[`hero_pill_${index + 1}`] = value;
+    map[`hero_pill_${String(index + 1).padStart(2, '0')}`] = value;
   }
 
   metrics.slice(0, 8).forEach((metric, index) => {
@@ -477,6 +533,62 @@ function createPlaceholderMap({ ucId, commandSlug, templateId, theme, data, tool
 interface ScalarEntry {
   path: string;
   value: string;
+}
+
+function findResultValue(value: unknown, keyPattern: RegExp): string | undefined {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const match = findResultValue(item, keyPattern);
+      if (match !== undefined) return match;
+    }
+    return undefined;
+  }
+  if (!value || typeof value !== 'object') return undefined;
+
+  const entries = Object.entries(value as Record<string, unknown>);
+  for (const [key, item] of entries) {
+    if (keyPattern.test(key) && ['string', 'number', 'boolean'].includes(typeof item)) {
+      return String(item);
+    }
+  }
+  for (const [, item] of entries) {
+    const match = findResultValue(item, keyPattern);
+    if (match !== undefined) return match;
+  }
+  return undefined;
+}
+
+function getHeroPillValues({ ucId, commandSlug, data, tool }: RenderContext): string[] {
+  return [
+    getCategoryPillLabel(data, tool),
+    getConfidenceLabel(data),
+    getRiskLabel(data),
+    tool?.id || commandSlug,
+    `Mode: ${getModeLabel(ucId)}`,
+    tool?.result_engine || 'AI Engine v1',
+  ];
+}
+
+function getCategoryPillLabel(data: UCResult, tool?: MXTool): string {
+  return findResultValue(data, /^(subcategory|subcategories|category|tool_type|engine|decision_engine)$/i)
+    || tool?.subcategories
+    || tool?.category
+    || 'Decision Engine';
+}
+
+function applyScorePlaceholders(placeholders: Record<string, string>, context: RenderContext): void {
+  const score = getScore(context.data);
+  placeholders.score_value = score;
+  placeholders.score_progress = score;
+  placeholders.score_label = getScoreLabel(context);
+  placeholders.score_status = getMetricStatus(score);
+}
+
+function getScoreLabel({ templateId, data }: RenderContext): string {
+  if (templateId === 'MXT_005') return 'Score';
+  const stat = data.summary_card.stats.find(item => /confidence|score|quality|performance/i.test(item.label));
+  if (stat?.label && /confidence/i.test(stat.label)) return 'Confidence';
+  return 'Score';
 }
 
 function populateTemplatePlaceholders(html: string, placeholders: Record<string, string>, context: RenderContext): void {
@@ -785,29 +897,106 @@ function getRecommendations(data: UCResult): Array<{ title: string; description?
 
 function getScore(data: UCResult): string {
   const decision = getDecision(data);
-  if (decision?.score) return String(decision.score);
+  if (decision?.score) return formatScoreValue(String(decision.score));
   const stat = data.summary_card.stats.find(item => /score|confidence|quality|performance/i.test(item.label));
-  return stat ? extractPercent(stat.value) : '88';
+  return stat ? formatScoreValue(stat.value) : '88';
+}
+
+function formatScoreValue(value: string): string {
+  const numeric = parseScoreLikeValue(value);
+  if (numeric === undefined) return extractPercent(value);
+  return String(Math.max(0, Math.min(100, Math.round(numeric))));
 }
 
 function getConfidenceLabel(data: UCResult): string {
-  const stat = data.summary_card.stats.find(item => /confidence/i.test(item.label));
-  return stat ? `${stat.value} Confidence` : 'High Confidence';
+  const rawValue = findResultValue(data, /^confidence$/i)
+    || data.summary_card.stats.find(item => /confidence/i.test(item.label))?.value;
+  if (!rawValue) return 'High Confidence';
+
+  const text = String(rawValue).trim();
+  if (/confidence/i.test(text) && !/^\d/.test(text)) return capitalizeWords(text);
+  if (/\b(high|strong|excellent|very good)\b/i.test(text)) return 'High Confidence';
+  if (/\b(medium|moderate|good|fair)\b/i.test(text)) return 'Good Confidence';
+  if (/\b(low|weak|poor)\b/i.test(text)) return 'Low Confidence';
+
+  const numeric = parseScoreLikeValue(text);
+  if (numeric !== undefined) {
+    if (numeric >= 85) return 'High Confidence';
+    if (numeric >= 70) return 'Good Confidence';
+    if (numeric >= 50) return 'Medium Confidence';
+    return 'Low Confidence';
+  }
+
+  return `${capitalizeWords(text)} Confidence`;
 }
 
 function getRiskLabel(data: UCResult): string {
-  const stat = data.summary_card.stats.find(item => /risk/i.test(item.label));
-  return stat?.value || 'Low Risk';
+  const rawValue = findResultValue(data, /^(risk|risk_level|risk_status)$/i)
+    || data.summary_card.stats.find(item => /risk/i.test(item.label))?.value;
+  return normalizeRiskLabel(rawValue);
+}
+
+function normalizeRiskLabel(value: string | undefined): string {
+  if (!value) return 'Low Risk';
+  const text = String(value).trim();
+  if (/\b(no|none|minimal|safe|low)\b/i.test(text)) return 'Low Risk';
+  if (/\b(medium|moderate|watch|caution)\b/i.test(text)) return 'Medium Risk';
+  if (/\b(high|severe|critical|danger|bad)\b/i.test(text)) return 'High Risk';
+  if (/risk/i.test(text) && text.split(/\s+/).length <= 3) return capitalizeWords(text);
+  return `${capitalizeWords(text)} Risk`;
+}
+
+function parseScoreLikeValue(value: string): number | undefined {
+  const match = value.match(/\d+(?:\.\d+)?/);
+  if (!match) return undefined;
+  const number = Number(match[0]);
+  if (!Number.isFinite(number)) return undefined;
+  if (number <= 1 && /0?\.\d+/.test(match[0])) return number * 100;
+  return number;
 }
 
 function getMetricStatus(value: string): string {
-  const percent = Number(extractPercent(value));
-  if (Number.isFinite(percent)) {
+  const match = String(value).match(/\d+(?:\.\d+)?/);
+  const percent = match ? Number(match[0]) : Number.NaN;
+  if (match && Number.isFinite(percent)) {
     if (percent >= 85) return 'Strong';
     if (percent >= 70) return 'Good';
-    if (percent >= 50) return 'Moderate';
+    if (percent >= 50) return 'Medium';
+    if (percent >= 30) return 'Weak';
+    return 'Bad';
   }
   return 'Ready';
+}
+
+function normalizeDimensionStatus(status?: string, value?: string, name?: string): string {
+  const source = String(status || '').trim();
+  const valueText = String(value || '').trim();
+  const nameText = String(name || '').trim();
+  const combined = `${source} ${valueText} ${nameText}`.toLowerCase();
+
+  if (/\b(not provided|unknown|n\/a|none)\b/i.test(source)) return 'Not provided';
+  if (/\b(strong|excellent|great|very good)\b/.test(combined)) return 'Strong';
+  if (/\b(good|solid|positive|recommended|ready|pass|passed)\b/.test(combined)) return 'Good';
+  if (/\b(medium|moderate|average|mixed|fair)\b/.test(combined)) return 'Medium';
+  if (/\b(safe|low risk|low-risk|secure)\b/.test(combined)) return 'Safe';
+  if (/\b(bad|poor|critical|danger|failed|fail|high risk|high-risk)\b/.test(combined)) return 'Bad';
+  if (/\b(weak|low confidence|thin|limited)\b/.test(combined)) return 'Weak';
+  if (/^(high|low)$/i.test(source)) return capitalize(source);
+
+  if (/risk|danger|issue|problem|difficulty|competition/i.test(nameText)) {
+    if (/\blow\b/i.test(valueText)) return 'Safe';
+    if (/\bmedium|moderate\b/i.test(valueText)) return 'Medium';
+    if (/\bhigh|severe|critical\b/i.test(valueText)) return 'Bad';
+  }
+
+  const numericSource = `${source} ${valueText}`;
+  const shouldScoreNumeric = /%|\/100|\b(score|confidence|quality|rating|progress|percent|percentage|opportunity)\b/i.test(`${numericSource} ${nameText}`);
+  const percentMatch = shouldScoreNumeric ? numericSource.match(/\d+(?:\.\d+)?/) : null;
+  if (percentMatch) return getMetricStatus(percentMatch[0]);
+
+  const shortClean = source.replace(/[^A-Za-z ]+/g, ' ').trim();
+  if (shortClean && shortClean.split(/\s+/).length <= 2) return capitalizeWords(shortClean);
+  return valueText ? getMetricStatus(valueText) : 'Good';
 }
 
 function getModeLabel(ucId: string): string {
@@ -847,6 +1036,14 @@ function setPillText(doc: Document, pill: HTMLElement | undefined, value: string
     pill.append(dot);
   }
   pill.append(value);
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
+function capitalizeWords(value: string): string {
+  return value.split(/\s+/).map(capitalize).join(' ');
 }
 
 function escapeHtml(value: string): string {

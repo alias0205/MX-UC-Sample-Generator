@@ -36,6 +36,8 @@ import { detectToolType } from './lib/toolIntelligence';
 import { generateToolResultWithAI } from './services/openAiService';
 import { normalizeBlocks } from './lib/blockNormalizer';
 import { validateSemanticQuality } from './lib/semanticValidator';
+import { getTemplatePlaceholderDefinitions } from './lib/htmlTemplateRegistry';
+import { generateTemplatePlaceholderMappings } from './services/templateMappingService';
 
 export default function App() {
   // ... (state remains same)
@@ -132,15 +134,28 @@ export default function App() {
     
     // 5. Block Normalization
     normalizeBlocks(ucs);
+
+    let templateMappings: Record<'UC1' | 'UC2' | 'UC3', Record<string, string>> | undefined;
+    if (templateId === 'MXT_001' || templateId === 'MXT_002' || templateId === 'MXT_003' || templateId === 'MXT_004' || templateId === 'MXT_005' || templateId === 'MXT_006' || templateId === 'MXT_007' || templateId === 'MXT_008') {
+      try {
+        templateMappings = await generateTemplatePlaceholderMappings(templateId, tool, ucs, {
+          UC1: getTemplatePlaceholderDefinitions(templateId, 'UC1'),
+          UC2: getTemplatePlaceholderDefinitions(templateId, 'UC2'),
+          UC3: getTemplatePlaceholderDefinitions(templateId, 'UC3'),
+        });
+      } catch (error) {
+        console.warn(`OpenAI placeholder mapping failed for ${tool.id}; using renderer fallback.`, error);
+      }
+    }
     
     // 6. Rendering (HTML)
     const html = {
-      UC1_light: renderResultHtml('UC1', slug, templateId, 'light', ucs.UC1, tool),
-      UC1_dark: renderResultHtml('UC1', slug, templateId, 'dark', ucs.UC1, tool),
-      UC2_light: renderResultHtml('UC2', slug, templateId, 'light', ucs.UC2, tool),
-      UC2_dark: renderResultHtml('UC2', slug, templateId, 'dark', ucs.UC2, tool),
-      UC3_light: renderResultHtml('UC3', slug, templateId, 'light', ucs.UC3, tool),
-      UC3_dark: renderResultHtml('UC3', slug, templateId, 'dark', ucs.UC3, tool),
+      UC1_light: renderResultHtml('UC1', slug, templateId, 'light', ucs.UC1, tool, templateMappings?.UC1),
+      UC1_dark: renderResultHtml('UC1', slug, templateId, 'dark', ucs.UC1, tool, templateMappings?.UC1),
+      UC2_light: renderResultHtml('UC2', slug, templateId, 'light', ucs.UC2, tool, templateMappings?.UC2),
+      UC2_dark: renderResultHtml('UC2', slug, templateId, 'dark', ucs.UC2, tool, templateMappings?.UC2),
+      UC3_light: renderResultHtml('UC3', slug, templateId, 'light', ucs.UC3, tool, templateMappings?.UC3),
+      UC3_dark: renderResultHtml('UC3', slug, templateId, 'dark', ucs.UC3, tool, templateMappings?.UC3),
     };
 
     // HTML Integrity Check

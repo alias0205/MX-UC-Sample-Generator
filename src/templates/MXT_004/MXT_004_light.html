@@ -9,8 +9,8 @@
   --mx-section-bg:#f8fafc;--mx-inner-bg:#eef2f7;--mx-text:#0f172a;--mx-muted:#64748b;
   --mx-shell-border:rgba(15,23,42,.14);--mx-section-border:rgba(15,23,42,.12);--mx-inner-border:rgba(15,23,42,.10);
   --mx-placeholder-bg:rgba(15,23,42,.035);--mx-placeholder-border:rgba(15,23,42,.18);
-  --mx-pill-1:#38bdf8;--mx-pill-2:#a78bfa;--mx-pill-3:#34d399;--mx-pill-4:#fbbf24;
-  --mx-pill-5:#fb7185;--mx-pill-6:#94a3b8;
+  --mx-pill-1:#38bdf8;--mx-pill-2:#a78bfa;--mx-pill-3:#34d399;--mx-pill-4:#f59e0b;
+  --mx-pill-5:#fb7185;--mx-pill-6:#3b82f6;
   --mx-space-xs:6px;--mx-space-sm:10px;--mx-space-md:16px;--mx-space-lg:24px;
   --mx-space-xl:32px;--mx-space-2xl:44px;
 }
@@ -29,8 +29,8 @@ body[data-theme="light"] .mx-brand-logo{filter:brightness(0)}
 .mx-hero{margin-bottom:var(--mx-space-lg)}
 .mx-hero-title{margin:0 0 var(--mx-space-md);font-size:clamp(30px,4vw,44px);line-height:1.05;letter-spacing:-.05em}
 .mx-hero-pills{display:flex;flex-wrap:wrap;gap:10px}
-.mx-pill{--pill-color:var(--mx-pill-1);display:inline-flex;align-items:center;gap:8px;min-height:32px;padding:7px 12px;border-radius:999px;border:1px solid color-mix(in srgb,var(--pill-color) 55%,transparent);background:color-mix(in srgb,var(--pill-color) 14%,var(--mx-inner-bg));color:var(--mx-text);font-size:12px;font-weight:800;white-space:nowrap}
-.mx-pill-dot{width:7px;height:7px;border-radius:50%;background:var(--pill-color);box-shadow:0 0 12px var(--pill-color)}
+.mx-pill{--pill-color:var(--mx-pill-1);display:inline-flex;align-items:center;gap:8px;min-height:32px;padding:7px 12px;border-radius:999px;border:1px solid currentColor;background:color-mix(in srgb,var(--pill-color) 14%,var(--mx-inner-bg));color:var(--pill-color);font-size:12px;font-weight:800;white-space:nowrap}
+.mx-pill-dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 12px currentColor}
 .mx-pill-1{--pill-color:var(--mx-pill-1)}
 .mx-pill-2{--pill-color:var(--mx-pill-2)}
 .mx-pill-3{--pill-color:var(--mx-pill-3)}
@@ -49,6 +49,11 @@ body[data-theme="light"] .mx-brand-logo{filter:brightness(0)}
 .mx-placeholder{display:block;width:100%;min-height:34px;padding:8px 10px;border:1px dashed var(--mx-placeholder-border);border-radius:10px;background:var(--mx-placeholder-bg);color:var(--mx-text);line-height:1.45;overflow-wrap:anywhere;white-space:normal}
 .mx-placeholder-inline{display:inline;overflow-wrap:anywhere}
 .mx-metadata-grid,.mx-strategy-grid,.mx-sequence-grid,.mx-action-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--mx-space-md)}
+.mx-meta-row{display:flex;flex-wrap:wrap;gap:12px;color:var(--mx-text);font-size:15px}
+.mx-summary-chip{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:8px 12px;border-radius:999px;border:1px solid currentColor;background:color-mix(in srgb,currentColor 13%,var(--mx-inner-bg));font-weight:700;line-height:1.2}
+.mx-summary-chip strong{font-weight:900;color:var(--mx-text)}
+.mx-summary-chip .mx-static-icon{width:26px;height:26px;margin-right:0;border-radius:999px;font-size:14px;background:color-mix(in srgb,currentColor 18%,var(--mx-inner-bg))}
+.mx-summary-chip-blue{color:var(--mx-pill-6)}.mx-summary-chip-purple{color:var(--mx-pill-2)}.mx-summary-chip-teal{color:#2dd4bf}
 .mx-inner-card{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;padding:var(--mx-space-md);border:1px solid var(--mx-inner-border);border-radius:18px;background:var(--mx-inner-bg);min-width:0}
 .mx-metadata-card,.mx-sequence-grid .mx-inner-card,.mx-action-grid .mx-inner-card{display:block}
 .mx-card-index{position:relative;display:grid;place-items:center;width:42px;height:42px;border-radius:13px;border:1px solid rgba(125,211,252,.78);background:radial-gradient(circle at 30% 15%,rgba(255,255,255,.30),transparent 34%),linear-gradient(180deg,#38a7e8 0%,#1879c8 52%,#2453b7 100%);color:#fff;font-weight:950;font-size:15px;line-height:1;text-shadow:0 2px 4px rgba(3,20,50,.48);box-shadow:0 0 0 1px rgba(56,189,248,.18),0 9px 20px rgba(14,116,200,.27),inset 0 2px 0 rgba(255,255,255,.34),inset 0 -3px 7px rgba(20,50,130,.30)}
@@ -62,6 +67,8 @@ body[data-theme="light"] .mx-brand-logo{filter:brightness(0)}
 .mx-tag-red{background:rgba(251,113,133,.14);color:#fb7185}.mx-tag-yellow{background:rgba(251,191,36,.14);color:#d99a00}.mx-tag-blue{background:rgba(56,189,248,.14);color:#0ea5e9}.mx-tag-teal{background:rgba(52,211,153,.14);color:#10b981}
 .mx-recommend-card{background:linear-gradient(135deg,color-mix(in srgb,#38bdf8 8%,var(--mx-section-bg)),color-mix(in srgb,#a78bfa 10%,var(--mx-section-bg)));border-color:color-mix(in srgb,#a78bfa 34%,var(--mx-section-border))}
 .mx-recommend-title{display:flex;align-items:center;margin:6px 0 14px;font-size:22px;line-height:1.2;letter-spacing:-.03em}
+.mx-brief-section .mx-section-head,.mx-final-recommendation-section .mx-section-head{margin-bottom:10px}.mx-brief-section .mx-section-head h2,.mx-final-recommendation-section .mx-section-head h2{margin:0}
+.mx-rewrite-strategy-section .mx-section-head,.mx-trigger-table-section .mx-section-head,.mx-sequence-section .mx-section-head,.mx-next-actions-section .mx-section-head{margin-bottom:10px}.mx-rewrite-strategy-section .mx-section-head h2,.mx-trigger-table-section .mx-section-head h2,.mx-sequence-section .mx-section-head h2,.mx-next-actions-section .mx-section-head h2{margin:0}
 .mx-footer{padding:20px 28px 24px;border-top:1px solid var(--mx-shell-border);background:var(--mx-shell-bg)}
 .mx-download-group{display:flex;flex-wrap:wrap;gap:12px}
 .mx-btn{display:flex;align-items:center;gap:10px;padding:12px 18px;border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;border:1px solid transparent;transition:all .25s ease;font-family:var(--mx-font)}
@@ -73,14 +80,16 @@ body[data-theme="light"] .mx-btn{box-shadow:inset 0 1px 0 rgba(255,255,255,.62),
 body[data-theme="light"] .mx-btn-json{background:linear-gradient(180deg,#60a5fa 0%,#3b82f6 48%,#2563eb 100%);border-color:#1d4ed8;color:#fff}
 body[data-theme="light"] .mx-btn-csv{background:linear-gradient(180deg,#fcd34d 0%,#f59e0b 50%,#d97706 100%);border-color:#b45309;color:#fff}
 body[data-theme="light"] .mx-btn-pdf{background:linear-gradient(180deg,#fb7185 0%,#ef4444 50%,#dc2626 100%);border-color:#b91c1c;color:#fff}
-@media(max-width:820px){body{padding:0 10px}.mx-shell{margin:16px auto}.mx-panel{margin:8px}.mx-inner{padding:20px}.mx-metadata-grid,.mx-strategy-grid,.mx-sequence-grid,.mx-action-grid{grid-template-columns:1fr}.mx-pill{white-space:normal}.mx-footer{padding:18px 20px}}
+@media(max-width:820px){body{padding:0 10px}.mx-shell{margin:16px auto}.mx-panel{margin:8px}.mx-inner{padding:20px}.mx-metadata-grid,.mx-strategy-grid,.mx-sequence-grid,.mx-action-grid{grid-template-columns:1fr}.mx-pill,.mx-summary-chip{white-space:normal}.mx-footer{padding:18px 20px}}
 
-.mx-context-pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.mx-context-pill,.mx-result-tag{display:inline-flex;align-items:center;padding:7px 11px;border-radius:999px;border:1px solid currentColor;font-size:11px;font-weight:800;white-space:nowrap}.mx-context-source,.mx-result-domain{color:#38bdf8;background:rgba(56,189,248,.13)}.mx-context-intent,.mx-result-intent{color:#22c55e;background:rgba(34,197,94,.13)}.mx-context-limit,.mx-result-type{color:#f59e0b;background:rgba(245,158,11,.13)}
-.mx-snapshot-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--mx-space-md)}.mx-metric-card{display:block}.mx-metric-card .mx-label{display:block;margin-bottom:9px;font-size:9px;overflow-wrap:anywhere}.mx-metric-card strong{display:block;margin-bottom:10px;font-size:16px;line-height:1.2;overflow-wrap:anywhere}.mx-metric-card .mx-placeholder{font-size:11px}
-.mx-results-table{min-width:1080px;table-layout:fixed}.mx-results-table th:nth-child(1){width:12%}.mx-results-table th:nth-child(2){width:15%}.mx-results-table th:nth-child(3){width:14%}.mx-results-table th:nth-child(4){width:27%}.mx-results-table th:nth-child(5),.mx-results-table th:nth-child(6){width:16%}.mx-results-table td{font-size:11px}.mx-result-position{font-size:8px!important;font-weight:900;color:#7dd3fc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mx-result-tag{max-width:100%;font-size:8px;overflow:hidden;text-overflow:ellipsis}
+.mx-section-head{margin-bottom:10px}.mx-section-head h2{margin:0}
+.mx-snapshot-brief .mx-section-head{margin-bottom:8px}.mx-snapshot-brief .mx-section-body{display:grid;gap:14px}.mx-snapshot-brief .mx-summary-title{margin:0;font-size:31px;line-height:1.14;font-weight:900}
+.mx-context-pills{display:flex;flex-wrap:wrap;gap:10px}.mx-context-pill,.mx-result-tag{display:inline-flex;align-items:center;gap:5px;padding:7px 11px;border-radius:999px;border:1px solid currentColor;font-size:12px;font-weight:800;white-space:nowrap}.mx-context-source,.mx-result-domain{color:#38bdf8;background:rgba(56,189,248,.13)}.mx-context-intent,.mx-result-intent{color:#22c55e;background:rgba(34,197,94,.13)}.mx-context-limit,.mx-result-type{color:#f59e0b;background:rgba(245,158,11,.13)}
+.mx-summary-card .mx-placeholder{font-size:16px;line-height:1.55}
+.mx-snapshot-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--mx-space-md)}.mx-metric-card{display:block}.mx-metric-card .mx-label{display:block;margin-bottom:9px;font-size:11px;overflow-wrap:anywhere}.mx-metric-card strong{display:block;margin-bottom:10px;font-size:27px;line-height:1.05;font-weight:900;overflow-wrap:anywhere}.mx-metric-card .mx-placeholder{font-size:13px;line-height:1.45}
+.mx-results-table{min-width:1180px;table-layout:fixed}.mx-results-table td{font-size:12px;line-height:1.45}.mx-result-position{font-size:13px!important;font-weight:900;color:#7dd3fc;white-space:nowrap}.mx-result-tag{max-width:100%;font-size:11px;overflow:hidden;text-overflow:ellipsis}.mx-result-domain,.mx-result-type{padding-left:10px;padding-right:10px}
 body[data-theme="light"] .mx-result-position{color:#075985}
-.mx-two-column{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--mx-space-lg)}.mx-two-column .mx-section{height:calc(100% - var(--mx-space-lg))}.mx-two-column .mx-snapshot-metrics{grid-template-columns:1fr}
-.mx-opportunity-list{display:grid;gap:12px}.mx-opportunity-card{align-items:start}.mx-opportunity-card .mx-placeholder{font-size:13px}
+.mx-opportunity-list{display:grid;gap:12px}.mx-opportunity-card{align-items:start}.mx-opportunity-card .mx-placeholder{font-size:14px;line-height:1.5}
 @media(max-width:820px){.mx-snapshot-metrics,.mx-two-column{grid-template-columns:1fr}.mx-results-table{min-width:980px}}
 </style>
 </head><body data-theme="light">
@@ -101,56 +110,41 @@ body[data-theme="light"] .mx-result-position{color:#075985}
 <header class="mx-hero">
   <h1 class="mx-hero-title"><span class="mx-icon-placeholder" aria-hidden="true">{{hero_icon}}</span><span class="mx-placeholder-inline">{{hero_title}}</span></h1>
   <div class="mx-hero-pills">
-    <span class="mx-pill mx-pill-1"><span class="mx-pill-dot"></span>{{hero_pill_01}}</span>
-    <span class="mx-pill mx-pill-2"><span class="mx-pill-dot"></span>{{hero_pill_02}}</span>
-    <span class="mx-pill mx-pill-3"><span class="mx-pill-dot"></span>{{hero_pill_03}}</span>
-    <span class="mx-pill mx-pill-4"><span class="mx-pill-dot"></span>{{hero_pill_04}}</span>
-    <span class="mx-pill mx-pill-5"><span class="mx-pill-dot"></span>{{hero_pill_05}}</span>
-    <span class="mx-pill mx-pill-6"><span class="mx-pill-dot"></span>{{hero_pill_06}}</span>
+    <span class="mx-pill mx-pill-1"><span class="mx-pill-dot"></span>{{hero_pill_1}}</span>
+    <span class="mx-pill mx-pill-2"><span class="mx-pill-dot"></span>{{hero_pill_2}}</span>
+    <span class="mx-pill mx-pill-3"><span class="mx-pill-dot"></span>{{hero_pill_3}}</span>
+    <span class="mx-pill mx-pill-4"><span class="mx-pill-dot"></span>{{hero_pill_4}}</span>
+    <span class="mx-pill mx-pill-5"><span class="mx-pill-dot"></span>{{hero_pill_5}}</span>
+    <span class="mx-pill mx-pill-6"><span class="mx-pill-dot"></span>{{hero_pill_6}}</span>
   </div>
 </header>
       <div class="mx-divider"></div>
       
 <section class="mx-section mx-section-card mx-snapshot-brief">
   <div class="mx-section-head">
-    <span class="mx-label">Snapshot brief</span>
-    
-  </div>
-  <div class="mx-section-body"><h2 class="mx-summary-title">{{snapshot_query}}</h2>
-    <div class="mx-placeholder">{{snapshot_summary}}</div>
-    <div class="mx-context-pills">
-      <span class="mx-context-pill mx-context-source">{{snapshot_source}}</span>
-      <span class="mx-context-pill mx-context-intent">{{snapshot_intent}}</span>
-      <span class="mx-context-pill mx-context-limit">{{snapshot_export_limit}}</span>
-    </div></div>
-</section>
-<section class="mx-section mx-section-card">
-  <div class="mx-section-head">
-    <span class="mx-label">Overview</span>
-    <h2><span class="mx-static-icon" aria-hidden="true">&#128269;</span>Snapshot insights</h2>
+    <span class="mx-label">SERP Export Brief</span>
   </div>
   <div class="mx-section-body">
-<div class="mx-snapshot-metrics"><article class="mx-inner-card mx-metric-card">
-    <span class="mx-label">{{snapshot_metric_label_01}}</span>
-    <strong>{{snapshot_metric_value_01}}</strong>
-    <div class="mx-placeholder">{{snapshot_metric_description_01}}</div>
-  </article><article class="mx-inner-card mx-metric-card">
-    <span class="mx-label">{{snapshot_metric_label_02}}</span>
-    <strong>{{snapshot_metric_value_02}}</strong>
-    <div class="mx-placeholder">{{snapshot_metric_description_02}}</div>
-  </article><article class="mx-inner-card mx-metric-card">
-    <span class="mx-label">{{snapshot_metric_label_03}}</span>
-    <strong>{{snapshot_metric_value_03}}</strong>
-    <div class="mx-placeholder">{{snapshot_metric_description_03}}</div>
-  </article></div></div>
+    <h2 class="mx-summary-title">{{snapshot_query}}</h2>
+    <div class="mx-context-pills">
+      <span class="mx-context-pill mx-context-source"><strong>Country:</strong> {{snapshot_source}}</span>
+      <span class="mx-context-pill mx-context-intent"><strong>Intent:</strong> {{snapshot_intent}}</span>
+      <span class="mx-context-pill mx-context-limit"><strong>Limit:</strong> {{snapshot_export_limit}}</span>
+    </div>
+  </div>
 </section>
-<section class="mx-section mx-section-card">
+<section class="mx-section mx-section-card mx-summary-card">
   <div class="mx-section-head">
-    <span class="mx-label">Results</span>
-    <h2><span class="mx-static-icon" aria-hidden="true">&#128202;</span>Ranked results</h2>
+    <h2><span class="mx-static-icon" aria-hidden="true">📌</span>Summary Card</h2>
+  </div>
+  <div class="mx-section-body"><div class="mx-placeholder">{{snapshot_summary}}</div></div>
+</section>
+<section class="mx-section mx-section-card mx-organic-results-section">
+  <div class="mx-section-head">
+    <h2><span class="mx-static-icon" aria-hidden="true">📊</span>Organic SERP Rows</h2>
   </div>
   <div class="mx-section-body"><div class="mx-table-wrap"><table class="mx-table mx-results-table">
-    <thead><tr><th>Position</th><th>Title</th><th>Domain</th><th>Snippet</th><th>Intent</th><th>Type</th></tr></thead>
+    <thead><tr><th>#</th><th>Title</th><th>Domain</th><th>Snippet</th><th>Intent</th><th>Type</th></tr></thead>
     <tbody><tr>
         <td class="mx-result-position">{{result_position_01}}</td>
         <td>{{result_title_01}}</td>
@@ -224,11 +218,24 @@ body[data-theme="light"] .mx-result-position{color:#075985}
       </tr></tbody>
   </table></div></div>
 </section>
-    <div class="mx-two-column">
-<section class="mx-section mx-section-card">
+<section class="mx-section mx-section-card mx-observed-patterns-section">
   <div class="mx-section-head">
-    <span class="mx-label">Analysis</span>
-    <h2><span class="mx-static-icon" aria-hidden="true">&#128142;</span>Result patterns</h2>
+    <h2><span class="mx-static-icon" aria-hidden="true">✅</span>Observed Patterns</h2>
+  </div>
+  <div class="mx-section-body"><div class="mx-opportunity-list"><article class="mx-inner-card mx-opportunity-card">
+      <div class="mx-card-index">1</div>
+      <div class="mx-placeholder">{{observed_pattern_01}}</div>
+    </article><article class="mx-inner-card mx-opportunity-card">
+      <div class="mx-card-index">2</div>
+      <div class="mx-placeholder">{{observed_pattern_02}}</div>
+    </article><article class="mx-inner-card mx-opportunity-card">
+      <div class="mx-card-index">3</div>
+      <div class="mx-placeholder">{{observed_pattern_03}}</div>
+    </article></div></div>
+</section>
+<section class="mx-section mx-section-card mx-intent-distribution-section">
+  <div class="mx-section-head">
+    <h2><span class="mx-static-icon" aria-hidden="true">📊</span>Intent Distribution</h2>
   </div>
   <div class="mx-section-body">
 <div class="mx-snapshot-metrics"><article class="mx-inner-card mx-metric-card">
@@ -245,10 +252,9 @@ body[data-theme="light"] .mx-result-position{color:#075985}
     <div class="mx-placeholder">{{pattern_metric_description_03}}</div>
   </article></div></div>
 </section>
-<section class="mx-section mx-section-card">
+<section class="mx-section mx-section-card mx-opportunity-section">
   <div class="mx-section-head">
-    <span class="mx-label">Opportunities</span>
-    <h2><span class="mx-static-icon" aria-hidden="true">&#129517;</span>Optimization opportunities</h2>
+    <h2><span class="mx-static-icon" aria-hidden="true">💡</span>Recommendations</h2>
   </div>
   <div class="mx-section-body"><div class="mx-opportunity-list"><article class="mx-inner-card mx-opportunity-card">
       <div class="mx-card-index">1</div>
@@ -263,7 +269,7 @@ body[data-theme="light"] .mx-result-position{color:#075985}
       <div class="mx-card-index">4</div>
       <div class="mx-placeholder">{{optimization_opportunity_04}}</div>
     </article></div></div>
-</section></div>
+</section>
     </div>
     
 <footer class="mx-footer">
@@ -298,49 +304,43 @@ body[data-theme="light"] .mx-result-position{color:#075985}
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bhero_pill_01\u007d\u007d",
+      "placeholder": "\u007b\u007bhero_pill_1\u007d\u007d",
       "section": "hero",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bhero_pill_02\u007d\u007d",
+      "placeholder": "\u007b\u007bhero_pill_2\u007d\u007d",
       "section": "hero",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bhero_pill_03\u007d\u007d",
+      "placeholder": "\u007b\u007bhero_pill_3\u007d\u007d",
       "section": "hero",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bhero_pill_04\u007d\u007d",
+      "placeholder": "\u007b\u007bhero_pill_4\u007d\u007d",
       "section": "hero",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bhero_pill_05\u007d\u007d",
+      "placeholder": "\u007b\u007bhero_pill_5\u007d\u007d",
       "section": "hero",
       "type": "text",
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bhero_pill_06\u007d\u007d",
+      "placeholder": "\u007b\u007bhero_pill_6\u007d\u007d",
       "section": "hero",
       "type": "text",
       "required": true
     },
     {
       "placeholder": "\u007b\u007bsnapshot_query\u007d\u007d",
-      "section": "snapshot",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bsnapshot_summary\u007d\u007d",
       "section": "snapshot",
       "type": "text",
       "required": true
@@ -364,55 +364,7 @@ body[data-theme="light"] .mx-result-position{color:#075985}
       "required": true
     },
     {
-      "placeholder": "\u007b\u007bsnapshot_metric_label_01\u007d\u007d",
-      "section": "snapshot",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bsnapshot_metric_value_01\u007d\u007d",
-      "section": "snapshot",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bsnapshot_metric_description_01\u007d\u007d",
-      "section": "snapshot",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bsnapshot_metric_label_02\u007d\u007d",
-      "section": "snapshot",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bsnapshot_metric_value_02\u007d\u007d",
-      "section": "snapshot",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bsnapshot_metric_description_02\u007d\u007d",
-      "section": "snapshot",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bsnapshot_metric_label_03\u007d\u007d",
-      "section": "snapshot",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bsnapshot_metric_value_03\u007d\u007d",
-      "section": "snapshot",
-      "type": "text",
-      "required": true
-    },
-    {
-      "placeholder": "\u007b\u007bsnapshot_metric_description_03\u007d\u007d",
+      "placeholder": "\u007b\u007bsnapshot_summary\u007d\u007d",
       "section": "snapshot",
       "type": "text",
       "required": true
@@ -774,6 +726,24 @@ body[data-theme="light"] .mx-result-position{color:#075985}
     {
       "placeholder": "\u007b\u007bresult_type_10\u007d\u007d",
       "section": "result",
+      "type": "text",
+      "required": true
+    },
+    {
+      "placeholder": "\u007b\u007bobserved_pattern_01\u007d\u007d",
+      "section": "observed",
+      "type": "text",
+      "required": true
+    },
+    {
+      "placeholder": "\u007b\u007bobserved_pattern_02\u007d\u007d",
+      "section": "observed",
+      "type": "text",
+      "required": true
+    },
+    {
+      "placeholder": "\u007b\u007bobserved_pattern_03\u007d\u007d",
+      "section": "observed",
       "type": "text",
       "required": true
     },

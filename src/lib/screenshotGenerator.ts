@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import html2canvas from 'html2canvas';
+import { toJpeg } from 'html-to-image';
 
 async function waitForImages(doc: Document): Promise<void> {
   const images = Array.from(doc.images);
@@ -68,6 +68,95 @@ function sanitizeCssForCapture(source: string, theme: "light" | "dark"): string 
   return replaceCssFunction(source, "color-mix", fallback);
 }
 
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, encodedData] = dataUrl.split(',', 2);
+  if (!header || !encodedData) throw new Error("Failed to create JPEG data URL");
+
+  const mimeType = header.match(/^data:([^;]+)/)?.[1] || "image/jpeg";
+  const binary = atob(encodedData);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new Blob([bytes], { type: mimeType });
+}
+
+async function waitForLayout(): Promise<void> {
+  await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+}
+
+function getNumericText(value: string | null | undefined): number | undefined {
+  const match = String(value ?? '').match(/\d+(?:\.\d+)?/);
+  if (!match) return undefined;
+  const number = Number(match[0]);
+  if (!Number.isFinite(number)) return undefined;
+  return Math.max(0, Math.min(100, number <= 1 ? number * 100 : number));
+}
+
+function setSvgCirclePaint(
+  element: SVGElement | null,
+  attributes: Record<string, string>
+): void {
+  if (!element) return;
+  Object.entries(attributes).forEach(([name, value]) => {
+    element.setAttribute(name, value);
+    element.style.setProperty(name, value);
+  });
+}
+
+function inlineComputedSvgPaint(element: SVGElement | null): void {
+  if (!element) return;
+  const computed = element.ownerDocument.defaultView?.getComputedStyle(element);
+  if (!computed) return;
+
+  [
+    'fill',
+    'stroke',
+    'stroke-width',
+    'stroke-linecap',
+    'stroke-linejoin',
+    'stroke-dasharray',
+    'stroke-dashoffset',
+    'opacity',
+    'filter',
+    'font-size',
+    'font-weight',
+    'letter-spacing',
+  ].forEach(property => {
+    const value = computed.getPropertyValue(property);
+    if (value) {
+      element.setAttribute(property, value);
+      element.style.setProperty(property, value);
+    }
+  });
+}
+
+function prepareScoreGaugesForCapture(doc: Document): void {
+  Array.from(doc.querySelectorAll<SVGSVGElement>('svg.mx-score-svg')).forEach(svg => {
+    const score = Math.round(
+      getNumericText(svg.querySelector('.mx-score-value')?.textContent)
+        ?? getNumericText(svg.querySelector<SVGElement>('.mx-score-progress')?.style.getPropertyValue('--mx-score-progress'))
+        ?? 88
+    );
+    svg.setAttribute('width', svg.getAttribute('width') || '264');
+    svg.setAttribute('height', svg.getAttribute('height') || '264');
+    Array.from(svg.querySelectorAll<SVGElement>('*')).forEach(inlineComputedSvgPaint);
+
+    setSvgCirclePaint(svg.querySelector<SVGElement>('.mx-score-outer'), {
+      fill: 'none',
+    });
+    setSvgCirclePaint(svg.querySelector<SVGElement>('.mx-score-core'), {
+    });
+    setSvgCirclePaint(svg.querySelector<SVGElement>('.mx-score-track'), {
+      fill: 'none',
+      'stroke-linecap': 'round',
+    });
+    setSvgCirclePaint(svg.querySelector<SVGElement>('.mx-score-progress'), {
+      fill: 'none',
+      'stroke-linecap': 'round',
+      'stroke-dasharray': `${score} ${Math.max(0, 100 - score)}`,
+    });
+  });
+}
+
 export async function renderHtmlToJpegBlob(
   html: string,
   css: string,
@@ -130,25 +219,32 @@ export async function renderHtmlToJpegBlob(
     const el = readyDoc.querySelector(".mx-shell, .mx-result, main") as HTMLElement | null;
     if (!el) throw new Error("Render failed: no renderable template root found in generated HTML");
 
+    // ForeignObject capture preserves auto margins as an internal offset while
+    // sizing the bitmap to the element itself, which clips the right edge.
+    el.style.marginLeft = "0";
+    el.style.marginRight = "0";
+    el.style.transform = "none";
     iframe.style.height = `${Math.max(el.scrollHeight + 80, 2000)}px`;
+    prepareScoreGaugesForCapture(readyDoc);
+    await waitForLayout();
 
-    const canvas = await html2canvas(el, {
+    const bounds = el.getBoundingClientRect();
+    const captureWidth = Math.ceil(Math.max(bounds.width, el.scrollWidth));
+    const captureHeight = Math.ceil(Math.max(bounds.height, el.scrollHeight));
+
+    const dataUrl = await toJpeg(el, {
       backgroundColor: theme === "dark" ? "#0f172a" : "#ffffff",
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      windowWidth: width,
+      quality: 0.92,
+      pixelRatio: 2,
+      cacheBust: true,
+      width: captureWidth,
+      height: captureHeight,
+      style: {
+        margin: "0",
+        transform: "none",
+      },
     });
-
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        b => (b ? resolve(b) : reject(new Error("Failed to create JPEG blob"))),
-        "image/jpeg",
-        0.92
-      );
-    });
-
-    return blob;
+    return dataUrlToBlob(dataUrl);
   } catch (error) {
     throw error;
   } finally {
