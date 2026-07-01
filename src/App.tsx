@@ -250,6 +250,7 @@ export default function App() {
         if (!fullValidation.passed || !thumbValidation.passed) {
           toolResult.status = 'error';
           toolResult.validation.passed = false;
+          console.log("AAAAAAAAAAAAA")
           if (!fullValidation.passed) toolResult.validation.issues.push(`Screenshot Error [${screenshotMeta.full_file}]: ${fullValidation.error}`);
           if (!thumbValidation.passed) toolResult.validation.issues.push(`Screenshot Error [${screenshotMeta.thumb_file}]: ${thumbValidation.error}`);
         } else {
@@ -260,6 +261,7 @@ export default function App() {
           if (fullDim.width === thumbDim.width) {
             toolResult.status = 'error';
             toolResult.validation.passed = false;
+            console.log("BBBBBBBBBB")
             toolResult.validation.issues.push(`Screenshot Error: Full and Thumb have same width (${fullDim.width}px) for ${screenshotMeta.html_key}`);
           } else {
             toolResult.screenshot_blobs![screenshotMeta.full_file] = fullBlob;
@@ -270,6 +272,7 @@ export default function App() {
         console.error(`Failed to capture screenshots for: ${screenshotMeta.html_key}`, err);
         toolResult.status = 'error';
         toolResult.validation.passed = false;
+        console.log("CCCCCCCCCCCC")
         toolResult.validation.issues.push(`Screenshot Failed [${screenshotMeta.html_key}]: Capture engine error`);
       }
     }
@@ -281,6 +284,7 @@ export default function App() {
     if (!semanticValidation.passed) {
       toolResult.status = 'error';
       toolResult.validation.passed = false;
+      console.log("DDDDDDDDDDDD")
       toolResult.validation.issues.push(...semanticValidation.issues);
     }
 
@@ -293,12 +297,14 @@ export default function App() {
       if (finalIssues.length > 0) {
         toolResult.status = 'error';
         toolResult.validation.passed = false;
+        console.log("EEEEEEEEEE")
         toolResult.validation.issues.push(...finalIssues);
       } else {
         toolResult.status = 'success';
       }
     } else {
       toolResult.validation.passed = false; // Synchronize validation with error status
+      console.log("FFFFFFFFFF")
     }
 
     return toolResult;

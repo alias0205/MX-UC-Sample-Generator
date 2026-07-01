@@ -290,6 +290,7 @@ function renderDynamicTemplateHtml(html: string, context: RenderContext): string
   } else {
     populateTemplatePlaceholders(html, placeholders, context);
   }
+  applyTemplatePlaceholderDefaults(placeholders, context);
 
   doc.body.dataset.templateId = context.templateId;
   doc.body.dataset.theme = context.theme;
@@ -355,6 +356,38 @@ function applyMappedPlaceholders(
     placeholders[shortStatusName] = normalizedStatus;
     placeholders[paddedStatusName] = normalizedStatus;
   }
+}
+
+function applyTemplatePlaceholderDefaults(placeholders: Record<string, string>, context: RenderContext): void {
+  if (context.templateId !== 'MXT_006') return;
+
+  if (isMissingPlaceholderValue(placeholders.profile_image_url)) {
+    placeholders.profile_image_url = createProfilePlaceholderImageDataUrl(placeholders.profile_name || context.data.summary_card.title);
+  }
+
+  if (isMissingPlaceholderValue(placeholders.initials)) {
+    placeholders.initials = getInitials(placeholders.profile_name || context.data.summary_card.title || context.tool?.tool_name || context.commandSlug);
+  }
+}
+
+function isMissingPlaceholderValue(value: string | undefined): boolean {
+  return !value?.trim() || value.includes('{{') || /^(not provided|n\/a|none|null|undefined)$/i.test(value.trim());
+}
+
+function getInitials(value: string): string {
+  const letters = value
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part.charAt(0).toUpperCase())
+    .join('');
+  return letters || 'MX';
+}
+
+function createProfilePlaceholderImageDataUrl(label: string): string {
+  const initials = getInitials(label);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><defs><linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#38bdf8"/><stop offset="55%" stop-color="#2563eb"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient></defs><rect width="128" height="128" rx="28" fill="url(#bg)"/><circle cx="42" cy="34" r="24" fill="rgba(255,255,255,.20)"/><text x="64" y="75" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="34" font-weight="900" fill="#ffffff">${initials}</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 function attachDownloadActions(doc: Document, context: RenderContext): void {
@@ -436,9 +469,7 @@ function createPlaceholderMap({ ucId, commandSlug, templateId, theme, data, tool
     || stats.find(stat => /risk/i.test(stat.label))?.value
     || 'Not provided';
   const resultMode = findResultValue(data, /^(response_mode|mode)$/i) || modeLabel;
-  const engineVersion = findResultValue(data, /^(engine|engine_version|result_engine)$/i)
-    || tool?.result_engine
-    || 'AI Engine v1';
+  const engineVersion = 'AI Engine v1';
   const toolId = findResultValue(data, /^tool_id$/i) || tool?.id || commandSlug;
 
   const map: Record<string, string> = {
@@ -579,7 +610,7 @@ function getHeroPillValues({ ucId, commandSlug, data, tool }: RenderContext): st
     getRiskLabel(data),
     tool?.id || commandSlug,
     `Mode: ${getModeLabel(ucId)}`,
-    tool?.result_engine || 'AI Engine v1',
+    'AI Engine v1',
   ];
 }
 

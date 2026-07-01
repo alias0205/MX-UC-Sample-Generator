@@ -36,5 +36,9 @@ export function getPackagedScreenshotFileName(
   uc: 'UC1' | 'UC2' | 'UC3',
   theme: 'light' | 'dark'
 ): string {
-  return `${toPackageFolderName(commandSlug, fallbackId)}_${uc}_${theme}.jpg`;
+  const safeToolId = (fallbackId || commandSlug || 'MarketXtractor_Tool')
+    .trim()
+    .replace(/[^A-Za-z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return `${safeToolId}_${uc}_${theme}.jpg`;
 }
