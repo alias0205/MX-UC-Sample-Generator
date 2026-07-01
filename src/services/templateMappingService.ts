@@ -14,12 +14,8 @@ interface MappingItem {
 
 const RENDERER_OWNED_PLACEHOLDERS = new Set([
   'theme',
-  'hero_pill_1', 'hero_pill_2', 'hero_pill_3',
-  'hero_pill_01', 'hero_pill_02', 'hero_pill_03',
   'hero_pill_4', 'hero_pill_5', 'hero_pill_6',
   'hero_pill_04', 'hero_pill_05', 'hero_pill_06',
-  'hero_badge_1', 'hero_badge_2', 'hero_badge_3',
-  'hero_badge_01', 'hero_badge_02', 'hero_badge_03',
   'hero_badge_4', 'hero_badge_5', 'hero_badge_6',
   'hero_badge_04', 'hero_badge_05', 'hero_badge_06',
   'score_progress',
@@ -90,7 +86,46 @@ export async function generateTemplatePlaceholderMappings(
       messages: [
         {
           role: 'system',
-          content: `You map MarketXtractor result JSON to an HTML template's placeholders. Return a value for every supplied placeholder name. Use only facts from the tool context and UC JSON. Do not infer facts that are absent; use "Not provided" when necessary. Preserve concise labels and values. For width or progress placeholders, return a numeric percentage from 0 to 100 without a percent sign. For dimension_status placeholders, return only one short badge word such as Strong, Good, Medium, Safe, Bad, Weak, High, Low, or Not provided. Do not copy a full metric value, sentence, rationale, or recommendation into a dimension_status placeholder.`,
+          content: `You map MarketXtractor result JSON to an HTML template's placeholders. Return a value for every supplied placeholder name. Use only facts from the tool context and UC JSON. Do not infer facts that are absent; use "Not provided" when necessary. Preserve concise labels and values. For width or progress placeholders, return a numeric percentage from 0 to 100 without a percent sign. For dimension_status placeholders, return only one short badge word such as Strong, Good, Medium, Safe, Bad, Weak, High, Low, or Not provided. Do not copy a full metric value, sentence, rationale, or recommendation into a dimension_status placeholder.
+            This is generation guidance for the hero pill (1-3) placeholders:
+            {
+                "position": 1,
+                "json_key": "hero_pill_1",
+                "placeholder": "{{hero_pill_1}}",
+                "source": "dynamic tool result",
+                "meaning": "Strongest capability, outcome, or result label",
+                "generation_rule": "Use the most compelling capability or result label from the current tool output.",
+                "examples": ["Decision Engine", "Intent Analyzer", "Opportunity Finder", "Recommendation Engine"]
+            },
+            {
+                "position": 2,
+                "json_key": "hero_pill_2",
+                "placeholder": "{{hero_pill_2}}",
+                "source": "result.confidence",
+                "meaning": "Confidence signal",
+                "generation_rule": "Convert numeric confidence into a readable confidence label.",
+                "thresholds": [
+                    { "condition": "confidence >= 0.90", "value": "High Confidence" },
+                    { "condition": "0.75 <= confidence < 0.90", "value": "Good Confidence" },
+                    { "condition": "0.60 <= confidence < 0.75", "value": "Moderate Confidence" },
+                    { "condition": "confidence < 0.60", "value": "Low Confidence" }
+                ]
+            },
+            {
+                "position": 3,
+                "json_key": "hero_pill_3",
+                "placeholder": "{{hero_pill_3}}",
+                "source": "confidence + ambiguity + recommendation severity",
+                "meaning": "Risk or opportunity signal",
+                "generation_rule": "Derive from actual result. Never default to Low Risk or High Risk.",
+                "thresholds": [
+                    { "condition": "confidence >= 0.90 and low ambiguity", "value": "Low Risk" },
+                    { "condition": "0.75 <= confidence < 0.90", "value": "Medium Risk" },
+                    { "condition": "0.60 <= confidence < 0.75", "value": "Elevated Risk" },
+                    { "condition": "confidence < 0.60 or high ambiguity", "value": "High Risk" }
+                ]
+            },
+          `,
         },
         {
           role: 'user',
@@ -117,7 +152,7 @@ export async function generateTemplatePlaceholderMappings(
         },
       },
     }),
-  });
+  })
 
   if (!response.ok) throw new Error(`OpenAI template mapping failed (${response.status}).`);
   const completion = await response.json();

@@ -315,8 +315,22 @@ function applyMappedPlaceholders(
 ): void {
   Object.assign(placeholders, mappedPlaceholders);
 
-  getHeroPillValues(context).forEach((value, offset) => {
-    const index = offset + 1;
+  const fallbackHeroPills = getHeroPillValues(context);
+  for (const index of [1, 2, 3]) {
+    const shortName = `hero_pill_${index}`;
+    const paddedName = `hero_pill_${String(index).padStart(2, '0')}`;
+    const shortBadgeName = `hero_badge_${index}`;
+    const paddedBadgeName = `hero_badge_${String(index).padStart(2, '0')}`;
+    const value = mappedPlaceholders[shortName] || mappedPlaceholders[paddedName] || fallbackHeroPills[index - 1];
+
+    placeholders[shortName] = value;
+    placeholders[paddedName] = value;
+    placeholders[shortBadgeName] = value;
+    placeholders[paddedBadgeName] = value;
+  }
+
+  fallbackHeroPills.slice(3).forEach((value, offset) => {
+    const index = offset + 4;
     placeholders[`hero_pill_${index}`] = value;
     placeholders[`hero_pill_${String(index).padStart(2, '0')}`] = value;
     placeholders[`hero_badge_${index}`] = value;
