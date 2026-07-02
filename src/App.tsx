@@ -10,7 +10,9 @@ import {
   PlayCircle,
   ShieldCheck,
   RefreshCcw,
-  Rocket
+  Rocket,
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { MXTool, ToolResult, PipelineState } from './types/mx';
 import { parseCSV } from './lib/csv';
@@ -39,6 +41,23 @@ import { validateSemanticQuality } from './lib/semanticValidator';
 import { getTemplatePlaceholderDefinitions } from './lib/htmlTemplateRegistry';
 import { generateTemplatePlaceholderMappings } from './services/templateMappingService';
 
+type AppNotification = {
+  id: number;
+  type: 'error' | 'warning';
+  title: string;
+  message: string;
+};
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return 'Unknown error';
+  }
+}
+
 export default function App() {
   // ... (state remains same)
   const [tools, setTools] = useState<MXTool[]>([]);
@@ -46,6 +65,7 @@ export default function App() {
   const [generationResults, setGenerationResults] = useState<Record<string, ToolResult>>({});
   const [selectedToolId, setSelectedToolId] = useState<string | null>(null);
   const [generatingToolIds, setGeneratingToolIds] = useState<string[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   const [pipeline, setPipeline] = useState<PipelineState>({
     csv_upload: 'pending',
@@ -58,6 +78,23 @@ export default function App() {
   });
 
   const [isGeneratingBatch, setIsGeneratingBatch] = useState(false);
+
+  const dismissNotification = (id: number) => {
+    setNotifications(prev => prev.filter(notification => notification.id !== id));
+  };
+
+  const showNotification = (notification: Omit<AppNotification, 'id'>) => {
+    const id = Date.now() + Math.random();
+    setNotifications(prev => [{ ...notification, id }, ...prev].slice(0, 5));
+  };
+
+  const showOpenAiErrorNotification = (tool: MXTool, phase: string, error: unknown) => {
+    showNotification({
+      type: 'error',
+      title: `OpenAI ${phase} failed for ${tool.id}`,
+      message: getErrorMessage(error),
+    });
+  };
 
   // Business Logic: Generators
   const generateToolResult = async (tool: MXTool) => {
@@ -95,6 +132,7 @@ export default function App() {
     } catch (err) {
       console.error(`AI Generation failed for tool: ${tool.id}, trying fallback`, err);
       aiError = err instanceof Error ? err.message : String(err);
+      showOpenAiErrorNotification(tool, 'generation', err);
       
       try {
         const fallback = generateFallbackByToolType(intel, tool);
@@ -145,6 +183,7 @@ export default function App() {
         });
       } catch (error) {
         console.warn(`OpenAI placeholder mapping failed for ${tool.id}; using renderer fallback.`, error);
+        showOpenAiErrorNotification(tool, 'template mapping', error);
       }
     }
     
@@ -372,6 +411,48 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-full bg-[#F3F4F6] font-sans text-slate-900 overflow-hidden">
+      {notifications.length > 0 && (
+        <div className="fixed right-4 top-4 z-50 flex w-[440px] max-w-[calc(100vw-2rem)] flex-col gap-3">
+          {notifications.map(notification => (
+            <div
+              key={notification.id}
+              className={cn(
+                "rounded-xl border bg-white p-4 shadow-2xl shadow-slate-900/10",
+                notification.type === 'error' ? "border-red-200" : "border-amber-200"
+              )}
+            >
+              <div className="flex items-start gap-3">
+                <div className={cn(
+                  "mt-0.5 rounded-full p-1",
+                  notification.type === 'error' ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"
+                )}>
+                  <AlertCircle className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className={cn(
+                    "text-sm font-semibold",
+                    notification.type === 'error' ? "text-red-900" : "text-amber-900"
+                  )}>
+                    {notification.title}
+                  </div>
+                  <div className="mt-1 break-words text-xs leading-5 text-slate-600">
+                    {notification.message}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => dismissNotification(notification.id)}
+                  className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                  aria-label="Dismiss notification"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Sidebar Navigation */}
       <aside className="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0">
         <div className="p-6 border-b border-slate-100">
