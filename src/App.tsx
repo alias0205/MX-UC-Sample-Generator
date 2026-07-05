@@ -186,6 +186,8 @@ export default function App() {
         showOpenAiErrorNotification(tool, 'template mapping', error);
       }
     }
+
+    console.log("----------- templateMappings ------------", templateMappings)
     
     // 6. Rendering (HTML)
     const html = {

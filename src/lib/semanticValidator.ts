@@ -154,6 +154,8 @@ export function validateSemanticQuality(result: ToolResult): { passed: boolean; 
     });
   });
 
+  console.log("------------- Semantic validation issues: ------------", issues);
+
   return {
     passed: issues.length === 0,
     issues

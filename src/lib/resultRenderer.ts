@@ -298,10 +298,14 @@ function renderDynamicTemplateHtml(html: string, context: RenderContext): string
   doc.body.classList.add(`mx-theme-${context.theme}`);
 
   applyDocumentMetadata(doc, context);
-  applyHeader(doc, context, placeholders);
+  if (context.templateId !== 'MXT_001' && context.templateId !== 'MXT_002' && context.templateId !== 'MXT_003' && context.templateId !== 'MXT_004' && context.templateId !== 'MXT_005' && context.templateId !== 'MXT_006' && context.templateId !== 'MXT_007' && context.templateId !== 'MXT_008') {
+    applyHeader(doc, context, placeholders);
+  }
   applySummary(doc, context);
   applyStats(doc, context);
-  applyTables(doc, context);
+  if (context.templateId !== 'MXT_001' && context.templateId !== 'MXT_002' && context.templateId !== 'MXT_003' && context.templateId !== 'MXT_004' && context.templateId !== 'MXT_005' && context.templateId !== 'MXT_006' && context.templateId !== 'MXT_007' && context.templateId !== 'MXT_008') {
+    applyTables(doc, context);
+  }
   applyNarrativeBlocks(doc, context);
   replaceRemainingPlaceholders(doc, placeholders);
   attachDownloadActions(doc, context);
@@ -359,6 +363,38 @@ function applyMappedPlaceholders(
 }
 
 function applyTemplatePlaceholderDefaults(placeholders: Record<string, string>, context: RenderContext): void {
+  if (context.templateId === 'MXT_001') {
+    applyMxt001PlaceholderMappings(placeholders, context);
+  }
+
+  if (context.templateId === 'MXT_002') {
+    applyMxt002PlaceholderMappings(placeholders, context);
+  }
+
+  if (context.templateId === 'MXT_003') {
+    applyMxt003PlaceholderMappings(placeholders, context);
+  }
+
+  if (context.templateId === 'MXT_004') {
+    applyMxt004PlaceholderMappings(placeholders, context);
+  }
+
+  if (context.templateId === 'MXT_005') {
+    applyMxt005PlaceholderMappings(placeholders, context);
+  }
+
+  if (context.templateId === 'MXT_006') {
+    applyMxt006PlaceholderMappings(placeholders, context);
+  }
+
+  if (context.templateId === 'MXT_007') {
+    applyMxt007PlaceholderMappings(placeholders, context);
+  }
+
+  if (context.templateId === 'MXT_008') {
+    applyMxt008PlaceholderMappings(placeholders, context);
+  }
+
   if (context.templateId !== 'MXT_006') return;
 
   if (isMissingPlaceholderValue(placeholders.profile_image_url)) {
@@ -368,6 +404,1244 @@ function applyTemplatePlaceholderDefaults(placeholders: Record<string, string>, 
   if (isMissingPlaceholderValue(placeholders.initials)) {
     placeholders.initials = getInitials(placeholders.profile_name || context.data.summary_card.title || context.tool?.tool_name || context.commandSlug);
   }
+}
+
+function applyMxt001PlaceholderMappings(placeholders: Record<string, string>, context: RenderContext): void {
+  const { data, tool, commandSlug } = context;
+  const metrics = getMetrics(data);
+  const actions = getActions(data);
+  const recommendations = getRecommendations(data);
+  const decision = getDecision(data);
+  const factorRows = getMxt001FactorRows(data);
+  const pressureMetrics = getMxt001PressureMetrics(data, metrics);
+  const finalDecision = stringifyValue(decision?.reason)
+    || recommendations[0]?.description
+    || recommendations[0]?.title
+    || data.summary_card.subtitle
+    || 'Not provided';
+
+  setMxt001Placeholder(placeholders, context, 'theme', context.theme);
+  setMxt001Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || 'MX');
+  setMxt001Placeholder(placeholders, context, 'hero_title', data.summary_card.title || tool?.tool_name || commandSlug);
+  setMxt001Placeholder(placeholders, context, 'decision_title', stringifyValue(decision?.title) || data.summary_card.title || 'Decision goal');
+  setMxt001Placeholder(placeholders, context, 'decision_summary', data.summary_card.subtitle || finalDecision);
+  setMxt001Placeholder(placeholders, context, 'decision_recommended', finalDecision);
+  setMxt001Placeholder(placeholders, context, 'decision_tolerance', findResultValue(data, /^(risk_tolerance|tolerance)$/i) || getRiskLabel(data));
+  setMxt001Placeholder(placeholders, context, 'risk_level', getRiskLabel(data));
+  setMxt001Placeholder(placeholders, context, 'final_decision_body', finalDecision);
+
+  applyScorePlaceholders(placeholders, context);
+
+  getHeroPillValues(context).forEach((value, index) => {
+    setMxt001Placeholder(placeholders, context, `hero_pill_${index + 1}`, value);
+  });
+
+  for (let index = 0; index < 4; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const metric = metrics[index] || {
+      label: `Dimension ${index + 1}`,
+      value: 'Not provided',
+      status: 'Not provided',
+    };
+
+    setMxt001Placeholder(placeholders, context, `dimension_name_${padded}`, metric.label);
+    setMxt001Placeholder(placeholders, context, `dimension_value_${padded}`, metric.value);
+    setMxt001Placeholder(
+      placeholders,
+      context,
+      `dimension_status_${padded}`,
+      normalizeDimensionStatus(metric.status, metric.value, metric.label)
+    );
+  }
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const row = factorRows[index] || {};
+
+    setMxt001Placeholder(placeholders, context, `factor_name_${padded}`, row.name || `Option ${index + 1}`);
+    setMxt001Placeholder(placeholders, context, `factor_signal_${padded}`, row.signal || 'Not provided');
+    setMxt001Placeholder(placeholders, context, `factor_impact_${padded}`, row.impact || 'Not provided');
+    setMxt001Placeholder(placeholders, context, `factor_action_${padded}`, row.action || 'Not provided');
+  }
+
+  for (let index = 0; index < 4; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const metric = pressureMetrics[index] || metrics[index] || {
+      label: `Pressure ${index + 1}`,
+      value: '0',
+    };
+
+    setMxt001Placeholder(placeholders, context, `pressure_label_${padded}`, metric.label);
+    setMxt001Placeholder(placeholders, context, `pressure_width_${padded}`, clampPercent(extractPercent(metric.value)));
+    setMxt001Placeholder(placeholders, context, `pressure_value_${padded}`, metric.value);
+  }
+
+  for (let index = 0; index < 4; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const action = actions[index] || recommendations[index];
+    setMxt001Placeholder(placeholders, context, `action_body_${padded}`, action?.description || action?.title || 'Not provided');
+  }
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const warning = recommendations[index] || actions[index];
+    setMxt001Placeholder(placeholders, context, `warning_body_${padded}`, warning?.description || warning?.title || 'Not provided');
+  }
+}
+
+function setMxt001Placeholder(
+  placeholders: Record<string, string>,
+  context: RenderContext,
+  key: string,
+  fallbackValue: string | undefined
+): void {
+  const mappedValue = context.mappedPlaceholders?.[key];
+  placeholders[key] = isMissingPlaceholderValue(mappedValue)
+    ? fallbackValue?.trim() || 'Not provided'
+    : mappedValue;
+}
+
+function getMxt001FactorRows(data: UCResult): Array<{ name?: string; signal?: string; impact?: string; action?: string }> {
+  const table = getDataTableBlock(data);
+  const rows = getTableRows(table);
+
+  if (rows.length > 0) {
+    return rows.map(row => {
+      const entries = Object.entries(row);
+      return {
+        name: stringifyValue(row.Option ?? row.option ?? row.Name ?? row.name ?? entries[0]?.[1]),
+        signal: stringifyValue(row.Score ?? row.score ?? row.Signal ?? row.signal ?? entries[1]?.[1]),
+        impact: stringifyValue(row.Constraint ?? row.constraint ?? row.Impact ?? row.impact ?? entries[2]?.[1]),
+        action: stringifyValue(row['Risk Note'] ?? row.risk_note ?? row.Action ?? row.action ?? entries[3]?.[1]),
+      };
+    });
+  }
+
+  const block = data.blocks.find(block => /ranked|option|factor/i.test(`${block.type} ${block.title}`));
+  const items = block?.items || block?.data || block?.recommendations;
+  if (!Array.isArray(items)) return [];
+
+  return items.map((item: any) => ({
+    name: stringifyValue(item.name || item.option || item.title || item.label),
+    signal: stringifyValue(item.signal || item.score || item.value),
+    impact: stringifyValue(item.impact || item.constraint || item.reason || item.description),
+    action: stringifyValue(item.action || item.risk_note || item.recommendation),
+  }));
+}
+
+function getMxt001PressureMetrics(
+  data: UCResult,
+  fallbackMetrics: Array<{ label: string; value: string; status?: string }>
+): Array<{ label: string; value: string; status?: string }> {
+  const block = data.blocks.find(block => /pressure|risk|breakdown/i.test(`${block.type} ${block.title}`));
+  const items = block?.metrics || block?.items || block?.data;
+  if (!Array.isArray(items)) return fallbackMetrics;
+
+  return items.map((item: any, index: number) => ({
+    label: stringifyValue(item.label || item.title || item.name) || `Pressure ${index + 1}`,
+    value: stringifyValue(item.value || item.score || item.weight || item.percentage || item.description) || '0',
+    status: stringifyValue(item.status || item.severity),
+  }));
+}
+
+function stringifyValue(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  return String(value).trim();
+}
+
+function applyMxt002PlaceholderMappings(placeholders: Record<string, string>, context: RenderContext): void {
+  const { data, tool, commandSlug } = context;
+  const stats = data.summary_card.stats ?? [];
+  const recommendations = getRecommendations(data);
+  const actions = getActions(data);
+  const strategyItems = getMxt002StrategyItems(data);
+  const rewriteRows = getMxt002RewriteRows(data);
+  const sequenceItems = getMxt002SequenceItems(data, actions);
+  const finalRecommendation = recommendations[0]?.description
+    || recommendations[0]?.title
+    || getDecision(data)?.reason
+    || data.summary_card.subtitle
+    || 'Not provided';
+
+  setMxt002Placeholder(placeholders, context, 'theme', context.theme);
+  setMxt002Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || 'MX');
+  setMxt002Placeholder(placeholders, context, 'hero_title', data.summary_card.title || tool?.tool_name || commandSlug);
+  setMxt002Placeholder(placeholders, context, 'summary_title', data.summary_card.title || tool?.tool_name || commandSlug);
+  setMxt002Placeholder(placeholders, context, 'summary_channel', findResultValue(data, /^(channel|platform)$/i) || stats[0]?.value || 'Not provided');
+  setMxt002Placeholder(placeholders, context, 'summary_audience', findResultValue(data, /^(audience|target_audience)$/i) || stats[1]?.value || 'Not provided');
+  setMxt002Placeholder(placeholders, context, 'summary_tone', findResultValue(data, /^(tone|voice|style)$/i) || stats[2]?.value || 'Not provided');
+  setMxt002Placeholder(placeholders, context, 'brief_body_01', data.summary_card.subtitle || finalRecommendation);
+  setMxt002Placeholder(placeholders, context, 'brief_body_02', recommendations[0]?.description || actions[0]?.description || finalRecommendation);
+  setMxt002Placeholder(placeholders, context, 'recommendation_body', finalRecommendation);
+
+  getHeroPillValues(context).forEach((value, index) => {
+    setMxt002Placeholder(placeholders, context, `hero_pill_${index + 1}`, value);
+  });
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const item = strategyItems[index] || recommendations[index] || actions[index];
+    setMxt002Placeholder(placeholders, context, `strategy_title_${padded}`, item?.title || `Strategy ${index + 1}`);
+    setMxt002Placeholder(placeholders, context, `strategy_body_${padded}`, item?.description || item?.title || 'Not provided');
+  }
+
+  for (let index = 0; index < 4; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const row = rewriteRows[index] || {};
+    setMxt002Placeholder(placeholders, context, `rewrite_original_${padded}`, row.original || `Rewrite ${index + 1}`);
+    setMxt002Placeholder(placeholders, context, `rewrite_risk_${padded}`, normalizeDimensionStatus(row.risk, row.risk, 'risk'));
+    setMxt002Placeholder(placeholders, context, `rewrite_recommendation_${padded}`, row.recommendation || 'Not provided');
+    setMxt002Placeholder(placeholders, context, `rewrite_reason_${padded}`, row.reason || row.impact || 'Not provided');
+  }
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const item = sequenceItems[index] || actions[index] || recommendations[index];
+    setMxt002Placeholder(placeholders, context, `sequence_title_${padded}`, item?.title || `Step ${index + 1}`);
+    setMxt002Placeholder(placeholders, context, `sequence_body_${padded}`, item?.description || item?.title || 'Not provided');
+  }
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const action = actions[index] || sequenceItems[index] || recommendations[index];
+    setMxt002Placeholder(placeholders, context, `action_body_${padded}`, action?.description || action?.title || 'Not provided');
+  }
+}
+
+function setMxt002Placeholder(
+  placeholders: Record<string, string>,
+  context: RenderContext,
+  key: string,
+  fallbackValue: string | undefined
+): void {
+  const mappedValue = context.mappedPlaceholders?.[key];
+  placeholders[key] = isMissingPlaceholderValue(mappedValue)
+    ? fallbackValue?.trim() || 'Not provided'
+    : mappedValue;
+}
+
+function getMxt002StrategyItems(data: UCResult): Array<{ title: string; description?: string }> {
+  const block = data.blocks.find(block => /strategy|brief|rewrite/i.test(`${block.type} ${block.title}`));
+  const items = block?.items || block?.steps || block?.data || block?.insights;
+  if (!Array.isArray(items)) return [];
+
+  return items.map((item: any, index: number) => ({
+    title: stringifyValue(item.title || item.label || item.name) || `Strategy ${index + 1}`,
+    description: stringifyValue(item.description || item.value || item.recommendation || item.impact),
+  }));
+}
+
+function getMxt002RewriteRows(data: UCResult): Array<{ original?: string; risk?: string; recommendation?: string; reason?: string; impact?: string }> {
+  const table = getDataTableBlock(data);
+  const rows = getTableRows(table);
+
+  if (rows.length > 0) {
+    return rows.map(row => {
+      const entries = Object.entries(row);
+      return {
+        original: stringifyValue(row.Original ?? row.original ?? row.Input ?? row.input ?? entries[0]?.[1]),
+        risk: stringifyValue(row.Risk ?? row.risk ?? row.Severity ?? row.severity ?? entries[1]?.[1]),
+        recommendation: stringifyValue(row.Recommendation ?? row.recommendation ?? row.Rewrite ?? row.rewrite ?? entries[2]?.[1]),
+        reason: stringifyValue(row.Reason ?? row.reason ?? row.Impact ?? row.impact ?? entries[3]?.[1]),
+        impact: stringifyValue(row.Impact ?? row.impact),
+      };
+    });
+  }
+
+  const block = data.blocks.find(block => /rewrite|risk|comparison|table/i.test(`${block.type} ${block.title}`));
+  const items = block?.items || block?.data || block?.recommendations;
+  if (!Array.isArray(items)) return [];
+
+  return items.map((item: any) => ({
+    original: stringifyValue(item.original || item.input || item.title || item.label),
+    risk: stringifyValue(item.risk || item.severity || item.status || item.impact),
+    recommendation: stringifyValue(item.recommendation || item.rewrite || item.description || item.value),
+    reason: stringifyValue(item.reason || item.rationale || item.impact),
+    impact: stringifyValue(item.impact),
+  }));
+}
+
+function getMxt002SequenceItems(
+  data: UCResult,
+  fallbackActions: Array<{ title: string; description?: string }>
+): Array<{ title: string; description?: string }> {
+  const block = data.blocks.find(block => /sequence|flow|steps|plan/i.test(`${block.type} ${block.title}`));
+  const items = block?.steps || block?.items || block?.data;
+  if (!Array.isArray(items)) return fallbackActions;
+
+  return items.map((item: any, index: number) => typeof item === 'string'
+    ? { title: `Step ${index + 1}`, description: item }
+    : {
+      title: stringifyValue(item.title || item.step || item.label) || `Step ${index + 1}`,
+      description: stringifyValue(item.description || item.value || item.action),
+    });
+}
+
+function applyMxt003PlaceholderMappings(placeholders: Record<string, string>, context: RenderContext): void {
+  const { data, tool, commandSlug } = context;
+  const metrics = getMetrics(data);
+  const actions = getActions(data);
+  const recommendations = getRecommendations(data);
+  const rankedOptions = getMxt003RankedOptions(data, metrics, recommendations);
+  const inputItems = getMxt003InputItems(data, metrics);
+  const comparisonRows = getMxt003ComparisonRows(data, rankedOptions);
+  const ruleItems = getMxt003RuleItems(data, actions, recommendations);
+  const finalRecommendation = recommendations[0]?.description
+    || recommendations[0]?.title
+    || getDecision(data)?.reason
+    || data.summary_card.subtitle
+    || 'Not provided';
+
+  setMxt003Placeholder(placeholders, context, 'theme', context.theme);
+  setMxt003Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || 'MX');
+  setMxt003Placeholder(placeholders, context, 'hero_title', data.summary_card.title || tool?.tool_name || commandSlug);
+  setMxt003Placeholder(placeholders, context, 'comparison_summary_title', data.summary_card.title || tool?.tool_name || commandSlug);
+  setMxt003Placeholder(placeholders, context, 'comparison_recommended_option', rankedOptions[0]?.name || recommendations[0]?.title || 'Not provided');
+  setMxt003Placeholder(placeholders, context, 'comparison_confidence', getConfidenceLabel(data));
+  setMxt003Placeholder(placeholders, context, 'comparison_risk_tolerance', findResultValue(data, /^(risk_tolerance|tolerance)$/i) || getRiskLabel(data));
+  setMxt003Placeholder(placeholders, context, 'final_recommendation_body', finalRecommendation);
+
+  getHeroPillValues(context).forEach((value, index) => {
+    setMxt003Placeholder(placeholders, context, `hero_pill_${index + 1}`, value);
+  });
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const input = inputItems[index] || {
+      name: `Input ${index + 1}`,
+      description: 'Not provided',
+      status: 'Not provided',
+    };
+
+    setMxt003Placeholder(placeholders, context, `input_name_${padded}`, input.name);
+    setMxt003Placeholder(placeholders, context, `input_description_${padded}`, input.description);
+    setMxt003Placeholder(placeholders, context, `input_status_${padded}`, normalizeDimensionStatus(input.status, input.description, input.name));
+  }
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const option = rankedOptions[index] || {
+      name: `Option ${index + 1}`,
+      description: 'Not provided',
+      status: 'Not provided',
+    };
+
+    setMxt003Placeholder(placeholders, context, `ranked_option_name_${padded}`, option.name);
+    setMxt003Placeholder(placeholders, context, `ranked_option_description_${padded}`, option.description);
+    setMxt003Placeholder(placeholders, context, `ranked_option_status_${padded}`, normalizeDimensionStatus(option.status, option.description, option.name));
+  }
+
+  setMxt003Placeholder(placeholders, context, 'comparison_option_a_name', rankedOptions[0]?.name || 'Option A');
+  setMxt003Placeholder(placeholders, context, 'comparison_option_b_name', rankedOptions[1]?.name || 'Option B');
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const row = comparisonRows[index] || {};
+
+    setMxt003Placeholder(placeholders, context, `comparison_criteria_${padded}`, row.criteria || `Criteria ${index + 1}`);
+    setMxt003Placeholder(placeholders, context, `comparison_option_a_text_${padded}`, row.optionAText || rankedOptions[0]?.description || 'Not provided');
+    setMxt003Placeholder(placeholders, context, `comparison_option_a_tag_${padded}`, normalizeDimensionStatus(row.optionATag, row.optionAText, 'option'));
+    setMxt003Placeholder(placeholders, context, `comparison_option_b_text_${padded}`, row.optionBText || rankedOptions[1]?.description || 'Not provided');
+    setMxt003Placeholder(placeholders, context, `comparison_option_b_tag_${padded}`, normalizeDimensionStatus(row.optionBTag, row.optionBText, 'option'));
+  }
+
+  for (let index = 0; index < 4; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const item = ruleItems[index] || recommendations[index] || actions[index];
+    setMxt003Placeholder(placeholders, context, `rule_applied_${padded}`, item?.description || item?.title || 'Not provided');
+  }
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const warning = recommendations[index] || actions[index];
+    setMxt003Placeholder(placeholders, context, `warning_body_${padded}`, warning?.description || warning?.title || 'Not provided');
+  }
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const action = actions[index] || recommendations[index];
+    setMxt003Placeholder(placeholders, context, `action_step_title_${padded}`, action?.title || `Step ${index + 1}`);
+    setMxt003Placeholder(placeholders, context, `action_step_body_${padded}`, action?.description || action?.title || 'Not provided');
+  }
+}
+
+function setMxt003Placeholder(
+  placeholders: Record<string, string>,
+  context: RenderContext,
+  key: string,
+  fallbackValue: string | undefined
+): void {
+  const mappedValue = context.mappedPlaceholders?.[key];
+  placeholders[key] = isMissingPlaceholderValue(mappedValue)
+    ? fallbackValue?.trim() || 'Not provided'
+    : mappedValue;
+}
+
+function getMxt003InputItems(
+  data: UCResult,
+  fallbackMetrics: Array<{ label: string; value: string; status?: string }>
+): Array<{ name: string; description: string; status?: string }> {
+  const block = data.blocks.find(block => /input|criteria|signal/i.test(`${block.type} ${block.title}`));
+  const items = block?.items || block?.data || block?.metrics;
+
+  if (Array.isArray(items)) {
+    return items.map((item: any, index: number) => ({
+      name: stringifyValue(item.name || item.title || item.label) || `Input ${index + 1}`,
+      description: stringifyValue(item.description || item.value || item.signal || item.impact) || 'Not provided',
+      status: stringifyValue(item.status || item.risk || item.impact),
+    }));
+  }
+
+  return fallbackMetrics.map((metric, index) => ({
+    name: metric.label || `Input ${index + 1}`,
+    description: metric.value || 'Not provided',
+    status: metric.status,
+  }));
+}
+
+function getMxt003RankedOptions(
+  data: UCResult,
+  fallbackMetrics: Array<{ label: string; value: string; status?: string }>,
+  fallbackRecommendations: Array<{ title: string; description?: string }>
+): Array<{ name: string; description: string; status?: string }> {
+  const table = getDataTableBlock(data);
+  const rows = getTableRows(table);
+
+  if (rows.length > 0) {
+    return rows.map((row, index) => {
+      const entries = Object.entries(row);
+      return {
+        name: stringifyValue(row.Option ?? row.option ?? row.Name ?? row.name ?? entries[0]?.[1]) || `Option ${index + 1}`,
+        description: stringifyValue(row.Description ?? row.description ?? row.Reason ?? row.reason ?? entries[1]?.[1]) || 'Not provided',
+        status: stringifyValue(row.Status ?? row.status ?? row.Score ?? row.score ?? entries[2]?.[1]),
+      };
+    });
+  }
+
+  const block = data.blocks.find(block => /ranked|option|comparison|recommend/i.test(`${block.type} ${block.title}`));
+  const items = block?.items || block?.data || block?.recommendations;
+  if (Array.isArray(items)) {
+    return items.map((item: any, index: number) => ({
+      name: stringifyValue(item.name || item.option || item.title || item.label) || `Option ${index + 1}`,
+      description: stringifyValue(item.description || item.reason || item.value || item.impact) || 'Not provided',
+      status: stringifyValue(item.status || item.score || item.risk || item.impact),
+    }));
+  }
+
+  if (fallbackRecommendations.length > 0) {
+    return fallbackRecommendations.map((item, index) => ({
+      name: item.title || `Option ${index + 1}`,
+      description: item.description || item.title || 'Not provided',
+      status: getMetricStatus(String(index === 0 ? 90 : 75)),
+    }));
+  }
+
+  return fallbackMetrics.map((metric, index) => ({
+    name: metric.label || `Option ${index + 1}`,
+    description: metric.value || 'Not provided',
+    status: metric.status,
+  }));
+}
+
+function getMxt003ComparisonRows(
+  data: UCResult,
+  rankedOptions: Array<{ name: string; description: string; status?: string }>
+): Array<{ criteria?: string; optionAText?: string; optionATag?: string; optionBText?: string; optionBTag?: string }> {
+  const block = data.blocks.find(block => /matrix|compare|comparison/i.test(`${block.type} ${block.title}`));
+  const rows = Array.isArray(block?.data) ? block.data : Array.isArray(block?.items) ? block.items : [];
+
+  if (rows.length > 0) {
+    return rows.map((row: any, index: number) => {
+      const entries = Object.entries(row);
+      return {
+        criteria: stringifyValue(row.Criteria ?? row.criteria ?? row.label ?? entries[0]?.[1]) || `Criteria ${index + 1}`,
+        optionAText: stringifyValue(row.option_a_text ?? row.OptionA ?? row['Option A'] ?? entries[1]?.[1]),
+        optionATag: stringifyValue(row.option_a_tag ?? row.optionAStatus ?? row['Option A Tag'] ?? entries[2]?.[1]),
+        optionBText: stringifyValue(row.option_b_text ?? row.OptionB ?? row['Option B'] ?? entries[3]?.[1]),
+        optionBTag: stringifyValue(row.option_b_tag ?? row.optionBStatus ?? row['Option B Tag'] ?? entries[4]?.[1]),
+      };
+    });
+  }
+
+  return [0, 1, 2].map(index => ({
+    criteria: ['Fit', 'Risk', 'Execution'][index],
+    optionAText: rankedOptions[0]?.description,
+    optionATag: rankedOptions[0]?.status || 'Good',
+    optionBText: rankedOptions[1]?.description,
+    optionBTag: rankedOptions[1]?.status || 'Medium',
+  }));
+}
+
+function getMxt003RuleItems(
+  data: UCResult,
+  fallbackActions: Array<{ title: string; description?: string }>,
+  fallbackRecommendations: Array<{ title: string; description?: string }>
+): Array<{ title: string; description?: string }> {
+  const block = data.blocks.find(block => /rule|criteria|applied|highlight/i.test(`${block.type} ${block.title}`));
+  const items = block?.items || block?.steps || block?.data;
+
+  if (Array.isArray(items)) {
+    return items.map((item: any, index: number) => typeof item === 'string'
+      ? { title: `Rule ${index + 1}`, description: item }
+      : {
+        title: stringifyValue(item.title || item.label || item.name) || `Rule ${index + 1}`,
+        description: stringifyValue(item.description || item.value || item.reason || item.impact),
+      });
+  }
+
+  return fallbackActions.length > 0 ? fallbackActions : fallbackRecommendations;
+}
+
+function applyMxt004PlaceholderMappings(placeholders: Record<string, string>, context: RenderContext): void {
+  const { data, tool, commandSlug } = context;
+  const stats = data.summary_card.stats ?? [];
+  const metrics = getMetrics(data);
+  const recommendations = getRecommendations(data);
+  const actions = getActions(data);
+  const results = getMxt004SerpResults(data);
+  const patternMetrics = getMxt004PatternMetrics(data, metrics);
+  const observedPatterns = getMxt004ObservedPatterns(data, recommendations);
+  const opportunities = getMxt004Opportunities(data, recommendations, actions);
+
+  setMxt004Placeholder(placeholders, context, 'theme', context.theme);
+  setMxt004Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || 'MX');
+  setMxt004Placeholder(placeholders, context, 'hero_title', data.summary_card.title || tool?.tool_name || commandSlug);
+  setMxt004Placeholder(placeholders, context, 'snapshot_query', findResultValue(data, /^(query|keyword|search_query)$/i) || data.summary_card.title || commandSlug);
+  setMxt004Placeholder(placeholders, context, 'snapshot_source', findResultValue(data, /^(country|source|market|location)$/i) || stats[0]?.value || 'Not provided');
+  setMxt004Placeholder(placeholders, context, 'snapshot_intent', findResultValue(data, /^(intent|search_intent)$/i) || stats[1]?.value || 'Not provided');
+  setMxt004Placeholder(placeholders, context, 'snapshot_export_limit', findResultValue(data, /^(limit|export_limit|result_limit)$/i) || String(results.length || 3));
+  setMxt004Placeholder(placeholders, context, 'snapshot_summary', data.summary_card.subtitle || recommendations[0]?.description || recommendations[0]?.title || 'Not provided');
+
+  getHeroPillValues(context).forEach((value, index) => {
+    setMxt004Placeholder(placeholders, context, `hero_pill_${index + 1}`, value);
+  });
+
+  for (let index = 0; index < 10; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const result = results[index] || {};
+    setMxt004Placeholder(placeholders, context, `result_position_${padded}`, result.position || String(index + 1));
+    setMxt004Placeholder(placeholders, context, `result_title_${padded}`, result.title || `Result ${index + 1}`);
+    setMxt004Placeholder(placeholders, context, `result_domain_${padded}`, result.domain || 'Not provided');
+    setMxt004Placeholder(placeholders, context, `result_snippet_${padded}`, result.snippet || 'Not provided');
+    setMxt004Placeholder(placeholders, context, `result_intent_${padded}`, result.intent || 'Not provided');
+    setMxt004Placeholder(placeholders, context, `result_type_${padded}`, result.type || 'Organic');
+  }
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const pattern = observedPatterns[index] || patternMetrics[index];
+    setMxt004Placeholder(placeholders, context, `observed_pattern_${padded}`, pattern?.description || pattern?.label || 'Not provided');
+  }
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const metric = patternMetrics[index] || {
+      label: `Metric ${index + 1}`,
+      value: 'Not provided',
+      description: 'Not provided',
+    };
+    setMxt004Placeholder(placeholders, context, `pattern_metric_label_${padded}`, metric.label);
+    setMxt004Placeholder(placeholders, context, `pattern_metric_value_${padded}`, metric.value);
+    setMxt004Placeholder(placeholders, context, `pattern_metric_description_${padded}`, metric.description || metric.value);
+  }
+
+  for (let index = 0; index < 4; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const opportunity = opportunities[index];
+    setMxt004Placeholder(placeholders, context, `optimization_opportunity_${padded}`, opportunity?.description || opportunity?.title || 'Not provided');
+  }
+}
+
+function setMxt004Placeholder(
+  placeholders: Record<string, string>,
+  context: RenderContext,
+  key: string,
+  fallbackValue: string | undefined
+): void {
+  const mappedValue = context.mappedPlaceholders?.[key];
+  placeholders[key] = isMissingPlaceholderValue(mappedValue)
+    ? fallbackValue?.trim() || 'Not provided'
+    : mappedValue;
+}
+
+function getMxt004SerpResults(data: UCResult): Array<{ position?: string; title?: string; domain?: string; snippet?: string; intent?: string; type?: string }> {
+  const table = getDataTableBlock(data);
+  const rows = getTableRows(table);
+
+  if (rows.length > 0) {
+    return rows.map((row, index) => {
+      const entries = Object.entries(row);
+      return {
+        position: stringifyValue(row.Position ?? row.position ?? row.Rank ?? row.rank ?? entries[0]?.[1]) || String(index + 1),
+        title: stringifyValue(row.Title ?? row.title ?? row.Name ?? row.name ?? entries[1]?.[1]),
+        domain: stringifyValue(row.Domain ?? row.domain ?? row.URL ?? row.url ?? entries[2]?.[1]),
+        snippet: stringifyValue(row.Snippet ?? row.snippet ?? row.Description ?? row.description ?? entries[3]?.[1]),
+        intent: stringifyValue(row.Intent ?? row.intent ?? row.SearchIntent ?? row.search_intent ?? entries[4]?.[1]),
+        type: stringifyValue(row.Type ?? row.type ?? row.ResultType ?? row.result_type ?? entries[5]?.[1]),
+      };
+    });
+  }
+
+  const block = data.blocks.find(block => /serp|result|ranking|search/i.test(`${block.type} ${block.title}`));
+  const items = block?.items || block?.data || block?.results;
+  if (!Array.isArray(items)) return [];
+
+  return items.map((item: any, index: number) => ({
+    position: stringifyValue(item.position || item.rank) || String(index + 1),
+    title: stringifyValue(item.title || item.name),
+    domain: stringifyValue(item.domain || item.url || item.source),
+    snippet: stringifyValue(item.snippet || item.description || item.summary),
+    intent: stringifyValue(item.intent || item.search_intent),
+    type: stringifyValue(item.type || item.result_type) || 'Organic',
+  }));
+}
+
+function getMxt004PatternMetrics(
+  data: UCResult,
+  fallbackMetrics: Array<{ label: string; value: string; status?: string }>
+): Array<{ label: string; value: string; description?: string }> {
+  const block = data.blocks.find(block => /pattern|metric|snapshot/i.test(`${block.type} ${block.title}`));
+  const items = block?.metrics || block?.items || block?.data;
+
+  if (Array.isArray(items)) {
+    return items.map((item: any, index: number) => ({
+      label: stringifyValue(item.label || item.title || item.name) || `Metric ${index + 1}`,
+      value: stringifyValue(item.value || item.score || item.count) || 'Not provided',
+      description: stringifyValue(item.description || item.insight || item.impact || item.value),
+    }));
+  }
+
+  return fallbackMetrics.map(metric => ({
+    label: metric.label,
+    value: metric.value,
+    description: metric.status || metric.value,
+  }));
+}
+
+function getMxt004ObservedPatterns(
+  data: UCResult,
+  fallbackRecommendations: Array<{ title: string; description?: string }>
+): Array<{ label?: string; description?: string }> {
+  const block = data.blocks.find(block => /observed|pattern|insight/i.test(`${block.type} ${block.title}`));
+  const items = block?.items || block?.insights || block?.data;
+
+  if (Array.isArray(items)) {
+    return items.map((item: any, index: number) => ({
+      label: stringifyValue(item.label || item.title || item.name) || `Pattern ${index + 1}`,
+      description: stringifyValue(item.description || item.value || item.insight || item.impact),
+    }));
+  }
+
+  return fallbackRecommendations.map(item => ({ label: item.title, description: item.description || item.title }));
+}
+
+function getMxt004Opportunities(
+  data: UCResult,
+  fallbackRecommendations: Array<{ title: string; description?: string }>,
+  fallbackActions: Array<{ title: string; description?: string }>
+): Array<{ title?: string; description?: string }> {
+  const block = data.blocks.find(block => /opportunity|optimization|recommend|action/i.test(`${block.type} ${block.title}`));
+  const items = block?.items || block?.recommendations || block?.steps || block?.data;
+
+  if (Array.isArray(items)) {
+    return items.map((item: any, index: number) => typeof item === 'string'
+      ? { title: `Opportunity ${index + 1}`, description: item }
+      : {
+        title: stringifyValue(item.title || item.label || item.name) || `Opportunity ${index + 1}`,
+        description: stringifyValue(item.description || item.value || item.action || item.impact),
+      });
+  }
+
+  return fallbackRecommendations.length > 0 ? fallbackRecommendations : fallbackActions;
+}
+
+function applyMxt005PlaceholderMappings(placeholders: Record<string, string>, context: RenderContext): void {
+  const { data, tool, commandSlug } = context;
+  const stats = data.summary_card.stats ?? [];
+  const metrics = getMetrics(data);
+  const recommendations = getRecommendations(data);
+  const actions = getActions(data);
+  const auditIssues = getMxt005AuditIssues(data, recommendations);
+  const pressureMetrics = getMxt005PressureMetrics(data, metrics);
+  const longTailKeywords = getMxt005LongTailKeywords(data, recommendations);
+  const finalRecommendation = recommendations[0]?.description
+    || recommendations[0]?.title
+    || getDecision(data)?.reason
+    || data.summary_card.subtitle
+    || 'Not provided';
+
+  setMxt005Placeholder(placeholders, context, 'theme', context.theme);
+  setMxt005Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || 'MX');
+  setMxt005Placeholder(placeholders, context, 'hero_title', data.summary_card.title || tool?.tool_name || commandSlug);
+  setMxt005Placeholder(placeholders, context, 'audit_subject', findResultValue(data, /^(subject|keyword|query|audit_subject)$/i) || data.summary_card.title || commandSlug);
+  setMxt005Placeholder(placeholders, context, 'audit_context_country', findResultValue(data, /^(country|market|location)$/i) || stats[0]?.value || 'Not provided');
+  setMxt005Placeholder(placeholders, context, 'audit_context_language', findResultValue(data, /^(language|locale)$/i) || stats[1]?.value || 'Not provided');
+  setMxt005Placeholder(placeholders, context, 'audit_context_intent', findResultValue(data, /^(intent|search_intent)$/i) || stats[2]?.value || 'Not provided');
+  setMxt005Placeholder(placeholders, context, 'final_recommendation_body', finalRecommendation);
+
+  applyScorePlaceholders(placeholders, context);
+
+  getHeroPillValues(context).forEach((value, index) => {
+    setMxt005Placeholder(placeholders, context, `hero_pill_${index + 1}`, value);
+  });
+
+  for (let index = 0; index < 4; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const metric = metrics[index] || {
+      label: `Dimension ${index + 1}`,
+      value: 'Not provided',
+      status: 'Not provided',
+    };
+
+    setMxt005Placeholder(placeholders, context, `dimension_name_${padded}`, metric.label);
+    setMxt005Placeholder(placeholders, context, `dimension_value_${padded}`, metric.value);
+    setMxt005Placeholder(placeholders, context, `dimension_status_${padded}`, normalizeDimensionStatus(metric.status, metric.value, metric.label));
+  }
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const issue = auditIssues[index] || {};
+    setMxt005Placeholder(placeholders, context, `audit_issue_name_${padded}`, issue.name || `Issue ${index + 1}`);
+    setMxt005Placeholder(placeholders, context, `audit_issue_severity_${padded}`, normalizeDimensionStatus(issue.severity, issue.evidence, 'severity'));
+    setMxt005Placeholder(placeholders, context, `audit_issue_evidence_${padded}`, issue.evidence || 'Not provided');
+  }
+
+  for (let index = 0; index < 5; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const metric = pressureMetrics[index] || metrics[index] || {
+      label: `Pressure ${index + 1}`,
+      value: '0',
+    };
+    setMxt005Placeholder(placeholders, context, `audit_pressure_label_${padded}`, metric.label);
+    setMxt005Placeholder(placeholders, context, `audit_pressure_width_${padded}`, clampPercent(extractPercent(metric.value)));
+    setMxt005Placeholder(placeholders, context, `audit_pressure_value_${padded}`, metric.value);
+  }
+
+  for (let index = 0; index < 4; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const action = actions[index] || recommendations[index] || auditIssues[index];
+    setMxt005Placeholder(placeholders, context, `audit_action_${padded}`, action?.description || action?.title || stringifyValue((action as any)?.evidence) || 'Not provided');
+  }
+
+  for (let index = 0; index < 5; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    setMxt005Placeholder(placeholders, context, `long_tail_keyword_${padded}`, longTailKeywords[index] || 'Not provided');
+  }
+}
+
+function setMxt005Placeholder(
+  placeholders: Record<string, string>,
+  context: RenderContext,
+  key: string,
+  fallbackValue: string | undefined
+): void {
+  const mappedValue = context.mappedPlaceholders?.[key];
+  placeholders[key] = isMissingPlaceholderValue(mappedValue)
+    ? fallbackValue?.trim() || 'Not provided'
+    : mappedValue;
+}
+
+function getMxt005AuditIssues(
+  data: UCResult,
+  fallbackRecommendations: Array<{ title: string; description?: string }>
+): Array<{ name?: string; severity?: string; evidence?: string; title?: string; description?: string }> {
+  const table = getDataTableBlock(data);
+  const rows = getTableRows(table);
+
+  if (rows.length > 0) {
+    return rows.map((row, index) => {
+      const entries = Object.entries(row);
+      return {
+        name: stringifyValue(row.Issue ?? row.issue ?? row.Name ?? row.name ?? entries[0]?.[1]) || `Issue ${index + 1}`,
+        severity: stringifyValue(row.Severity ?? row.severity ?? row.Risk ?? row.risk ?? entries[1]?.[1]),
+        evidence: stringifyValue(row.Evidence ?? row.evidence ?? row.Description ?? row.description ?? entries[2]?.[1]),
+      };
+    });
+  }
+
+  const block = data.blocks.find(block => /issue|finding|audit|risk/i.test(`${block.type} ${block.title}`));
+  const items = block?.items || block?.data || block?.findings || block?.recommendations;
+  if (Array.isArray(items)) {
+    return items.map((item: any, index: number) => ({
+      name: stringifyValue(item.name || item.issue || item.title || item.label) || `Issue ${index + 1}`,
+      severity: stringifyValue(item.severity || item.risk || item.status || item.impact),
+      evidence: stringifyValue(item.evidence || item.description || item.value || item.reason),
+    }));
+  }
+
+  return fallbackRecommendations.map(item => ({
+    name: item.title,
+    severity: 'Medium',
+    evidence: item.description || item.title,
+  }));
+}
+
+function getMxt005PressureMetrics(
+  data: UCResult,
+  fallbackMetrics: Array<{ label: string; value: string; status?: string }>
+): Array<{ label: string; value: string; status?: string }> {
+  const block = data.blocks.find(block => /pressure|risk|breakdown|score/i.test(`${block.type} ${block.title}`));
+  const items = block?.metrics || block?.items || block?.data;
+
+  if (Array.isArray(items)) {
+    return items.map((item: any, index: number) => ({
+      label: stringifyValue(item.label || item.title || item.name) || `Pressure ${index + 1}`,
+      value: stringifyValue(item.value || item.score || item.weight || item.percentage) || '0',
+      status: stringifyValue(item.status || item.severity),
+    }));
+  }
+
+  return fallbackMetrics;
+}
+
+function getMxt005LongTailKeywords(
+  data: UCResult,
+  fallbackRecommendations: Array<{ title: string; description?: string }>
+): string[] {
+  const block = data.blocks.find(block => /long.?tail|keyword|opportunity|suggest/i.test(`${block.type} ${block.title}`));
+  const items = block?.items || block?.data || block?.keywords || block?.recommendations;
+
+  if (Array.isArray(items)) {
+    return items.map((item: any, index: number) => {
+      if (typeof item === 'string') return item;
+      return stringifyValue(item.keyword || item.query || item.title || item.label || item.value) || `Keyword ${index + 1}`;
+    });
+  }
+
+  return fallbackRecommendations.map(item => item.title || item.description || '').filter(Boolean);
+}
+
+function applyMxt006PlaceholderMappings(placeholders: Record<string, string>, context: RenderContext): void {
+  const { data, tool, commandSlug } = context;
+  const stats = data.summary_card.stats ?? [];
+  const metrics = getMetrics(data);
+  const recommendations = getRecommendations(data);
+  const actions = getActions(data);
+  const attributes = getMxt006Attributes(data, metrics);
+  const details = getMxt006Details(data, recommendations, actions);
+  const leadSignals = getMxt006ListItems(data, /lead|signal/i, recommendations);
+  const outreachContexts = getMxt006ListItems(data, /outreach|context/i, actions);
+  const profileName = findResultValue(data, /^(profile_name|name|person|company|brand)$/i)
+    || data.summary_card.title
+    || tool?.tool_name
+    || commandSlug;
+
+  setMxt006Placeholder(placeholders, context, 'theme', context.theme);
+  setMxt006Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || 'MX');
+  setMxt006Placeholder(placeholders, context, 'hero_title', data.summary_card.title || tool?.tool_name || commandSlug);
+  setMxt006Placeholder(placeholders, context, 'profile_scan_title', data.summary_card.title || tool?.tool_name || commandSlug);
+  setMxt006Placeholder(placeholders, context, 'profile_context_01', findResultValue(data, /^(platform|network|channel)$/i) || stats[0]?.value || 'Not provided');
+  setMxt006Placeholder(placeholders, context, 'profile_context_02', findResultValue(data, /^(niche|category|industry)$/i) || stats[1]?.value || 'Not provided');
+  setMxt006Placeholder(placeholders, context, 'profile_context_03', findResultValue(data, /^(profile_type|type|segment)$/i) || stats[2]?.value || 'Not provided');
+  setMxt006Placeholder(placeholders, context, 'profile_name', profileName);
+  setMxt006Placeholder(placeholders, context, 'profile_metadata', findResultValue(data, /^(metadata|profile_metadata|bio_meta)$/i) || [stats[0]?.value, stats[1]?.value].filter(Boolean).join(' · ') || 'Not provided');
+  setMxt006Placeholder(placeholders, context, 'profile_scan_summary', data.summary_card.subtitle || recommendations[0]?.description || recommendations[0]?.title || 'Not provided');
+  setMxt006Placeholder(placeholders, context, 'profile_score', getScore(data));
+  setMxt006Placeholder(placeholders, context, 'profile_rating_visual', getRatingVisual(getScore(data)));
+  placeholders.profile_rating_visual = formatMxt006RatingVisual(placeholders.profile_rating_visual, getScore(data));
+  setMxt006Placeholder(placeholders, context, 'profile_score_label', getScoreLabel(context));
+  setMxt006Placeholder(placeholders, context, 'profile_image_url', findResultValue(data, /^(profile_image_url|image_url|avatar_url|photo_url)$/i) || 'Not provided');
+  setMxt006Placeholder(placeholders, context, 'initials', getInitials(profileName));
+
+  getHeroPillValues(context).forEach((value, index) => {
+    setMxt006Placeholder(placeholders, context, `hero_pill_${index + 1}`, value);
+  });
+
+  for (let index = 0; index < 4; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const attribute = attributes[index] || {
+      label: `Attribute ${index + 1}`,
+      value: 'Not provided',
+    };
+    setMxt006Placeholder(placeholders, context, `attribute_label_${padded}`, attribute.label);
+    setMxt006Placeholder(placeholders, context, `attribute_value_${padded}`, attribute.value);
+  }
+
+  for (let index = 0; index < 6; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const detail = details[index] || {
+      title: `Detail ${index + 1}`,
+      description: 'Not provided',
+    };
+    setMxt006Placeholder(placeholders, context, `profile_detail_title_${padded}`, detail.title);
+    setMxt006Placeholder(placeholders, context, `profile_detail_body_${padded}`, detail.description || detail.title);
+  }
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    setMxt006Placeholder(placeholders, context, `lead_signal_${padded}`, leadSignals[index]?.description || leadSignals[index]?.title || 'Not provided');
+  }
+
+  for (let index = 0; index < 4; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    setMxt006Placeholder(placeholders, context, `outreach_context_${padded}`, outreachContexts[index]?.description || outreachContexts[index]?.title || 'Not provided');
+  }
+}
+
+function setMxt006Placeholder(
+  placeholders: Record<string, string>,
+  context: RenderContext,
+  key: string,
+  fallbackValue: string | undefined
+): void {
+  const mappedValue = context.mappedPlaceholders?.[key];
+  placeholders[key] = isMissingPlaceholderValue(mappedValue)
+    ? fallbackValue?.trim() || 'Not provided'
+    : mappedValue;
+}
+
+function formatMxt006RatingVisual(value: string | undefined, score: string): string {
+  return getRatingVisual(score || value || '');
+}
+
+function isScoreLikeLabel(value: string): boolean {
+  return /^\d+(?:\.\d+)?\s*(?:\/\s*100|%)?$/.test(value.trim());
+}
+
+function getMxt006Attributes(
+  data: UCResult,
+  fallbackMetrics: Array<{ label: string; value: string; status?: string }>
+): Array<{ label: string; value: string }> {
+  const block = data.blocks.find(block => /attribute|profile|summary|metric/i.test(`${block.type} ${block.title}`));
+  const items = block?.attributes || block?.metrics || block?.items || block?.data;
+
+  if (Array.isArray(items)) {
+    return items.map((item: any, index: number) => ({
+      label: stringifyValue(item.label || item.title || item.name) || `Attribute ${index + 1}`,
+      value: stringifyValue(item.value || item.description || item.status || item.impact) || 'Not provided',
+    }));
+  }
+
+  return fallbackMetrics.map(metric => ({
+    label: metric.label,
+    value: metric.value,
+  }));
+}
+
+function getMxt006Details(
+  data: UCResult,
+  fallbackRecommendations: Array<{ title: string; description?: string }>,
+  fallbackActions: Array<{ title: string; description?: string }>
+): Array<{ title: string; description?: string }> {
+  const block = data.blocks.find(block => /detail|insight|profile|analysis/i.test(`${block.type} ${block.title}`));
+  const items = block?.items || block?.insights || block?.data || block?.recommendations;
+
+  if (Array.isArray(items)) {
+    return items.map((item: any, index: number) => ({
+      title: stringifyValue(item.title || item.label || item.name) || `Detail ${index + 1}`,
+      description: stringifyValue(item.description || item.value || item.reason || item.impact),
+    }));
+  }
+
+  return fallbackRecommendations.length > 0 ? fallbackRecommendations : fallbackActions;
+}
+
+function getMxt006ListItems(
+  data: UCResult,
+  pattern: RegExp,
+  fallbackItems: Array<{ title: string; description?: string }>
+): Array<{ title: string; description?: string }> {
+  const block = data.blocks.find(block => pattern.test(`${block.type} ${block.title}`));
+  const items = block?.items || block?.signals || block?.contexts || block?.steps || block?.data;
+
+  if (Array.isArray(items)) {
+    return items.map((item: any, index: number) => typeof item === 'string'
+      ? { title: `Item ${index + 1}`, description: item }
+      : {
+        title: stringifyValue(item.title || item.label || item.name) || `Item ${index + 1}`,
+        description: stringifyValue(item.description || item.value || item.reason || item.context),
+      });
+  }
+
+  return fallbackItems;
+}
+
+function getRatingVisual(score: string): string {
+  const numeric = Number(extractPercent(score));
+  const stars = Number.isFinite(numeric) ? Math.max(1, Math.min(5, Math.round(numeric / 20))) : 4;
+  return '★★★★★'.slice(0, stars) + '☆☆☆☆☆'.slice(0, 5 - stars);
+}
+
+function applyMxt007PlaceholderMappings(placeholders: Record<string, string>, context: RenderContext): void {
+  const { data, tool, commandSlug } = context;
+  const stats = data.summary_card.stats ?? [];
+  const metrics = getMetrics(data);
+  const actions = getActions(data);
+  const recommendations = getRecommendations(data);
+  const decision = getDecision(data);
+  const rankedOptions = getMxt007RankedOptions(data, metrics, recommendations);
+  const highlights = getMxt007Highlights(data, metrics, recommendations);
+  const bestOption = rankedOptions[0];
+  const recommendationBody = recommendations[0]?.description
+    || recommendations[0]?.title
+    || decision?.reason
+    || bestOption?.reason
+    || data.summary_card.subtitle
+    || 'Not provided';
+
+  setMxt007Placeholder(placeholders, context, 'theme', context.theme);
+  setMxt007Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || 'MX');
+  setMxt007Placeholder(placeholders, context, 'hero_title', data.summary_card.title || tool?.tool_name || commandSlug);
+  setMxt007Placeholder(placeholders, context, 'ranked_result_title', data.summary_card.title || tool?.tool_name || commandSlug);
+  setMxt007Placeholder(placeholders, context, 'ranked_context_keyword', findResultValue(data, /^(keyword|query|topic|subject)$/i) || stats[0]?.value || commandSlug);
+  setMxt007Placeholder(placeholders, context, 'ranked_context_audience', findResultValue(data, /^(audience|target_audience)$/i) || stats[1]?.value || 'Not provided');
+  setMxt007Placeholder(placeholders, context, 'ranked_context_level', findResultValue(data, /^(level|difficulty|tier|stage)$/i) || stats[2]?.value || getModeLabel(context.ucId));
+  setMxt007Placeholder(placeholders, context, 'ranked_context_best_angle', bestOption?.title || bestOption?.label || recommendations[0]?.title || 'Not provided');
+  setMxt007Placeholder(placeholders, context, 'ranked_context_use', findResultValue(data, /^(use|recommended_use|use_case)$/i) || recommendationBody);
+  setMxt007Placeholder(placeholders, context, 'ranked_decision_body', decision?.reason || recommendationBody);
+  setMxt007Placeholder(placeholders, context, 'ranked_action_body', actions[0]?.description || actions[0]?.title || recommendationBody);
+  setMxt007Placeholder(placeholders, context, 'ranked_recommendation_body', recommendationBody);
+
+  getHeroPillValues(context).forEach((value, index) => {
+    setMxt007Placeholder(placeholders, context, `hero_pill_${index + 1}`, value);
+  });
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const highlight = highlights[index] || {
+      label: `Highlight ${index + 1}`,
+      body: 'Not provided',
+    };
+    setMxt007Placeholder(placeholders, context, `highlight_label_${padded}`, highlight.label);
+    setMxt007Placeholder(placeholders, context, `highlight_body_${padded}`, highlight.body);
+  }
+
+  for (let index = 0; index < 10; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const option = rankedOptions[index] || {
+      title: `Option ${index + 1}`,
+      label: 'Not provided',
+      reason: 'Not provided',
+    };
+    setMxt007Placeholder(placeholders, context, `ranked_option_title_${padded}`, option.title);
+    setMxt007Placeholder(placeholders, context, `ranked_option_label_${padded}`, formatMxt007RankedOptionLabel(option.label, option.reason, option.title));
+    setMxt007Placeholder(placeholders, context, `ranked_option_reason_${padded}`, option.reason);
+    placeholders[`ranked_option_label_${padded}`] = formatMxt007RankedOptionLabel(
+      placeholders[`ranked_option_label_${padded}`],
+      option.reason,
+      option.title
+    );
+  }
+}
+
+function setMxt007Placeholder(
+  placeholders: Record<string, string>,
+  context: RenderContext,
+  key: string,
+  fallbackValue: string | undefined
+): void {
+  const mappedValue = context.mappedPlaceholders?.[key];
+  placeholders[key] = isMissingPlaceholderValue(mappedValue)
+    ? fallbackValue?.trim() || 'Not provided'
+    : mappedValue;
+}
+
+function formatMxt007RankedOptionLabel(value: string | undefined, reason?: string, title?: string): string {
+  if (isMissingPlaceholderValue(value)) return 'Not provided';
+  const normalizedValue = value.trim();
+  if (isScoreLikeLabel(normalizedValue)) return getRatingVisual(normalizedValue);
+  return normalizeDimensionStatus(normalizedValue, reason, title);
+}
+
+function getMxt007RankedOptions(
+  data: UCResult,
+  fallbackMetrics: Array<{ label: string; value: string; status?: string }>,
+  fallbackRecommendations: Array<{ title: string; description?: string }>
+): Array<{ title: string; label: string; reason: string }> {
+  const table = getDataTableBlock(data);
+  const rows = getTableRows(table);
+
+  if (rows.length > 0) {
+    return rows.map((row, index) => {
+      const entries = Object.entries(row);
+      const title = stringifyValue(row.Title ?? row.title ?? row.Option ?? row.option ?? row.Name ?? row.name ?? entries[0]?.[1]) || `Option ${index + 1}`;
+      const label = stringifyValue(row.Label ?? row.label ?? row.Status ?? row.status ?? row.Score ?? row.score ?? entries[1]?.[1]) || 'Good';
+      const reason = stringifyValue(row.Reason ?? row.reason ?? row.Description ?? row.description ?? row.Rationale ?? row.rationale ?? entries[2]?.[1]) || 'Not provided';
+      return { title, label, reason };
+    });
+  }
+
+  const block = data.blocks.find(block => /rank|option|recommend|choice|angle/i.test(`${block.type} ${block.title}`));
+  const items = block?.items || block?.data || block?.recommendations;
+  if (Array.isArray(items)) {
+    return items.map((item: any, index: number) => ({
+      title: stringifyValue(item.title || item.option || item.name || item.label) || `Option ${index + 1}`,
+      label: stringifyValue(item.label || item.status || item.score || item.priority || item.impact) || 'Good',
+      reason: stringifyValue(item.reason || item.description || item.rationale || item.value || item.impact) || 'Not provided',
+    }));
+  }
+
+  if (fallbackRecommendations.length > 0) {
+    return fallbackRecommendations.map((item, index) => ({
+      title: item.title || `Option ${index + 1}`,
+      label: index === 0 ? 'Best' : 'Good',
+      reason: item.description || item.title || 'Not provided',
+    }));
+  }
+
+  return fallbackMetrics.map((metric, index) => ({
+    title: metric.label || `Option ${index + 1}`,
+    label: metric.status || getMetricStatus(metric.value),
+    reason: metric.value || 'Not provided',
+  }));
+}
+
+function getMxt007Highlights(
+  data: UCResult,
+  fallbackMetrics: Array<{ label: string; value: string; status?: string }>,
+  fallbackRecommendations: Array<{ title: string; description?: string }>
+): Array<{ label: string; body: string }> {
+  const block = data.blocks.find(block => /highlight|insight|summary|metric/i.test(`${block.type} ${block.title}`));
+  const items = block?.items || block?.insights || block?.metrics || block?.data;
+
+  if (Array.isArray(items)) {
+    return items.map((item: any, index: number) => ({
+      label: stringifyValue(item.label || item.title || item.name) || `Highlight ${index + 1}`,
+      body: stringifyValue(item.body || item.description || item.value || item.impact) || 'Not provided',
+    }));
+  }
+
+  if (fallbackMetrics.length > 0) {
+    return fallbackMetrics.map(metric => ({
+      label: metric.label,
+      body: metric.value,
+    }));
+  }
+
+  return fallbackRecommendations.map(item => ({
+    label: item.title,
+    body: item.description || item.title,
+  }));
+}
+
+function applyMxt008PlaceholderMappings(placeholders: Record<string, string>, context: RenderContext): void {
+  const { data, tool, commandSlug } = context;
+  const stats = data.summary_card.stats ?? [];
+  const metrics = getMetrics(data);
+  const actions = getActions(data);
+  const recommendations = getRecommendations(data);
+  const automationItems = getMxt008Items(data, /automation|workflow|pipeline|step|process/i, actions);
+  const insightItems = getMxt008Items(data, /insight|summary|analysis|finding|metric/i, recommendations);
+  const riskItems = getMxt008Items(data, /risk|opportun|constraint|warning/i, recommendations);
+  const summaryBody = data.summary_card.subtitle
+    || recommendations[0]?.description
+    || recommendations[0]?.title
+    || 'Not provided';
+
+  setMxt008Placeholder(placeholders, context, 'theme', context.theme);
+  setMxt008Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || 'MX');
+  setMxt008Placeholder(placeholders, context, 'hero_title', data.summary_card.title || tool?.tool_name || commandSlug);
+  setMxt008Placeholder(placeholders, context, 'automation_title', data.summary_card.title || tool?.tool_name || commandSlug);
+  setMxt008Placeholder(placeholders, context, 'automation_use_case', findResultValue(data, /^(use_case|use|workflow|automation_use_case)$/i) || data.summary_card.title || commandSlug);
+  setMxt008Placeholder(placeholders, context, 'automation_stack', findResultValue(data, /^(stack|tool_stack|platform|tools)$/i) || stats[0]?.value || 'Not provided');
+  setMxt008Placeholder(placeholders, context, 'automation_constraint', findResultValue(data, /^(constraint|limitation|requirement|guardrail)$/i) || getRiskLabel(data));
+  setMxt008Placeholder(placeholders, context, 'automation_confidence', findResultValue(data, /^confidence$/i) || stats.find(stat => /confidence/i.test(stat.label))?.value || getConfidenceLabel(data));
+  setMxt008Placeholder(placeholders, context, 'automation_setup', findResultValue(data, /^(setup|implementation|mode|configuration)$/i) || getModeLabel(context.ucId));
+  setMxt008Placeholder(placeholders, context, 'summary_title', data.summary_card.title || 'Automation summary');
+  setMxt008Placeholder(placeholders, context, 'summary_body', summaryBody);
+  setMxt008Placeholder(placeholders, context, 'workflow_explanation', getMxt008WorkflowExplanation(data, automationItems, recommendations, summaryBody));
+  setMxt008Placeholder(placeholders, context, 'idea_title', recommendations[0]?.title || data.summary_card.title || 'Idea summary');
+  setMxt008Placeholder(placeholders, context, 'idea_body', recommendations[0]?.description || summaryBody);
+
+  getHeroPillValues(context).forEach((value, index) => {
+    setMxt008Placeholder(placeholders, context, `hero_pill_${index + 1}`, value);
+  });
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const metric = metrics[index] || {
+      label: `Metric ${index + 1}`,
+      value: 'Not provided',
+      status: 'Not provided',
+    };
+    setMxt008Placeholder(placeholders, context, `metric_label_${padded}`, metric.label);
+    setMxt008Placeholder(placeholders, context, `metric_value_${padded}`, metric.value);
+    setMxt008Placeholder(placeholders, context, `metric_body_${padded}`, metric.status || normalizeDimensionStatus(metric.value, metric.value, metric.label));
+  }
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const item = insightItems[index] || recommendations[index] || metrics[index];
+    setMxt008Placeholder(placeholders, context, `insight_title_${padded}`, getMxt008ItemTitle(item, `Insight ${index + 1}`));
+    setMxt008Placeholder(placeholders, context, `insight_body_${padded}`, getMxt008ItemBody(item));
+  }
+
+  for (let index = 0; index < 5; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const item = automationItems[index] || actions[index] || recommendations[index];
+    setMxt008Placeholder(placeholders, context, `pipeline_step_title_${padded}`, item?.title || `Step ${index + 1}`);
+    setMxt008Placeholder(placeholders, context, `pipeline_step_body_${padded}`, item?.description || item?.title || 'Not provided');
+  }
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const item = recommendations[index] || actions[index] || insightItems[index];
+    setMxt008Placeholder(placeholders, context, `recommendation_${padded}`, item?.description || item?.title || 'Not provided');
+  }
+
+  for (let index = 0; index < 3; index += 1) {
+    const padded = String(index + 1).padStart(2, '0');
+    const item = riskItems[index] || recommendations[index] || actions[index];
+    setMxt008Placeholder(placeholders, context, `risk_opportunity_${padded}`, item?.description || item?.title || 'Not provided');
+  }
+}
+
+function setMxt008Placeholder(
+  placeholders: Record<string, string>,
+  context: RenderContext,
+  key: string,
+  fallbackValue: string | undefined
+): void {
+  const mappedValue = context.mappedPlaceholders?.[key];
+  placeholders[key] = isMissingPlaceholderValue(mappedValue)
+    ? fallbackValue?.trim() || 'Not provided'
+    : mappedValue;
+}
+
+function getMxt008Items(
+  data: UCResult,
+  pattern: RegExp,
+  fallbackItems: Array<{ title: string; description?: string }>
+): Array<{ title: string; description?: string; label?: string; value?: string }> {
+  const block = data.blocks.find(block => pattern.test(`${block.type} ${block.title}`));
+  const items = block?.items || block?.steps || block?.insights || block?.recommendations || block?.metrics || block?.data;
+
+  if (Array.isArray(items)) {
+    return items.map((item: any, index: number) => typeof item === 'string'
+      ? { title: `Item ${index + 1}`, description: item }
+      : {
+        title: stringifyValue(item.title || item.step || item.label || item.name) || `Item ${index + 1}`,
+        description: stringifyValue(item.description || item.value || item.action || item.reason || item.impact),
+        label: stringifyValue(item.label || item.name),
+        value: stringifyValue(item.value || item.score || item.status),
+      });
+  }
+
+  return fallbackItems;
+}
+
+function getMxt008WorkflowExplanation(
+  data: UCResult,
+  automationItems: Array<{ title: string; description?: string }>,
+  recommendations: Array<{ title: string; description?: string }>,
+  fallback: string
+): string {
+  return findResultValue(data, /^(workflow_explanation|workflow_summary|explanation|process_summary)$/i)
+    || automationItems[0]?.description
+    || recommendations[0]?.description
+    || fallback;
+}
+
+function getMxt008ItemTitle(item: unknown, fallback: string): string {
+  if (!item || typeof item !== 'object') return fallback;
+  const record = item as Record<string, unknown>;
+  return stringifyValue(record.title || record.label || record.name) || fallback;
+}
+
+function getMxt008ItemBody(item: unknown): string {
+  if (!item || typeof item !== 'object') return 'Not provided';
+  const record = item as Record<string, unknown>;
+  return stringifyValue(record.description || record.value || record.reason || record.impact || record.title || record.label) || 'Not provided';
 }
 
 function isMissingPlaceholderValue(value: string | undefined): boolean {
@@ -1053,6 +2327,12 @@ function getModeLabel(ucId: string): string {
 function extractPercent(value: string): string {
   const match = String(value).match(/\d+(?:\.\d+)?/);
   return match ? match[0] : '88';
+}
+
+function clampPercent(value: string): string {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '0';
+  return String(Math.max(0, Math.min(100, Math.round(numeric))));
 }
 
 function getInputSummary(commandSlug: string): string {

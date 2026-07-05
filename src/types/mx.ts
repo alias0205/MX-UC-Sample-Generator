@@ -12,6 +12,7 @@ export interface MXTool {
   icon_emoji?: string;
   short_description?: string;
   long_description?: string;
+  system_prompt?: string;
   response_modes?: string;
   input_schema_json: string;
   output_spec_json: string;

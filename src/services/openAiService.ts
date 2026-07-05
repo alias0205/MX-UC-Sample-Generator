@@ -39,6 +39,22 @@ metrics_grid -> uses "data" (object: {label, value}[])
 decision_layer -> uses {status, score, reason}
 `;
 
+function buildGenerationPrompt(tool: MXTool): string {
+  const toolSystemPrompt = tool.system_prompt?.trim();
+  if (!toolSystemPrompt) return GENERATION_PROMPT;
+
+  return `${GENERATION_PROMPT}
+
+--------------------------------------
+TOOL-SPECIFIC SYSTEM PROMPT
+--------------------------------------
+The following instructions come from this tool's CSV system_prompt field.
+Apply them when generating input_sample and UC1/UC2/UC3 for this tool.
+
+${toolSystemPrompt}
+`;
+}
+
 const responseSchema = {
   type: "object",
   additionalProperties: false,
@@ -104,15 +120,29 @@ const responseSchema = {
   },
 } as const;
 
+function parseCsvJsonField(value: string | undefined): unknown {
+  if (!value?.trim()) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
 function buildToolContext(tool: MXTool): string {
-  return `
-TOOL NAME: ${tool.tool_name}
-COMMAND SLUG: ${tool.command_slug}
-CATEGORY: ${tool.category}
-INPUT SCHEMA: ${tool.input_schema_json}
-OUTPUT SPEC: ${tool.output_spec_json}
-SHORT DESCRIPTION: ${tool.short_description}
-`;
+  return JSON.stringify({
+    tool_name: tool.tool_name,
+    command_slug: tool.command_slug,
+    category: tool.category,
+    subcategories: tool.subcategories,
+    short_description: tool.short_description,
+    long_description: tool.long_description,
+    response_modes: tool.response_modes,
+    result_engine: tool.result_engine,
+    result_template_id: tool.result_template_id,
+    input_schema: parseCsvJsonField(tool.input_schema_json),
+    output_spec: parseCsvJsonField(tool.output_spec_json),
+  }, null, 2);
 }
 
 async function readOpenAiError(response: Response): Promise<string> {
@@ -139,7 +169,7 @@ export async function generateToolResultWithAI(tool: MXTool): Promise<{ input_sa
     body: JSON.stringify({
       model: OPENAI_MODEL,
       messages: [
-        { role: "system", content: GENERATION_PROMPT },
+        { role: "system", content: buildGenerationPrompt(tool) },
         { role: "user", content: buildToolContext(tool) },
       ],
       response_format: {
