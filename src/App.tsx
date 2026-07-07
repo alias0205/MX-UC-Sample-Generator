@@ -39,7 +39,7 @@ import { generateToolResultWithAI } from './services/openAiService';
 import { normalizeBlocks } from './lib/blockNormalizer';
 import { validateSemanticQuality } from './lib/semanticValidator';
 import { getTemplatePlaceholderDefinitions } from './lib/htmlTemplateRegistry';
-import { generateTemplatePlaceholderMappings } from './services/templateMappingService';
+import { generateTemplatePlaceholderMappings, isOpenAiMappedTemplateId } from './services/templateMappingService';
 
 type AppNotification = {
   id: number;
@@ -174,7 +174,7 @@ export default function App() {
     normalizeBlocks(ucs);
 
     let templateMappings: Record<'UC1' | 'UC2' | 'UC3', Record<string, string>> | undefined;
-    if (templateId === 'MXT_001' || templateId === 'MXT_002' || templateId === 'MXT_003' || templateId === 'MXT_004' || templateId === 'MXT_005' || templateId === 'MXT_006' || templateId === 'MXT_007' || templateId === 'MXT_008') {
+    if (isOpenAiMappedTemplateId(templateId)) {
       try {
         templateMappings = await generateTemplatePlaceholderMappings(templateId, tool, ucs, {
           UC1: getTemplatePlaceholderDefinitions(templateId, 'UC1'),
@@ -187,8 +187,6 @@ export default function App() {
       }
     }
 
-    console.log("----------- templateMappings ------------", templateMappings)
-    
     // 6. Rendering (HTML)
     const html = {
       UC1_light: renderResultHtml('UC1', slug, templateId, 'light', ucs.UC1, tool, templateMappings?.UC1),

@@ -17,6 +17,10 @@ const rawTemplateFiles = import.meta.glob<string>([
   eager: true,
 });
 
+const templateCandidateCache = new Map<string, Array<[string, string]>>();
+const templateFileCache = new Map<string, TemplateFileMatch | null>();
+const placeholderDefinitionCache = new Map<string, TemplatePlaceholderDefinition[]>();
+
 function normalizeTemplateId(templateId: string | undefined): string {
   const match = templateId?.match(/MXT_\d{3}/i);
   return match ? match[0].toUpperCase() : 'MXT_001';
@@ -29,6 +33,17 @@ function toDisplayPath(importPath: string): string {
 function belongsToTemplate(path: string, templateId: string): boolean {
   const fileName = path.split('/').pop()?.toUpperCase() ?? '';
   return path.startsWith(`../templates/${templateId}/`) || fileName.startsWith(`${templateId}_`);
+}
+
+function getTemplateCandidates(templateId: string): Array<[string, string]> {
+  const cachedCandidates = templateCandidateCache.get(templateId);
+  if (cachedCandidates) return cachedCandidates;
+
+  const candidates = Object.entries(rawTemplateFiles).filter(([path]) =>
+    belongsToTemplate(path, templateId)
+  );
+  templateCandidateCache.set(templateId, candidates);
+  return candidates;
 }
 
 export interface TemplatePlaceholderDefinition {
@@ -61,13 +76,13 @@ export function getHtmlTemplateFile(
   theme: Theme
 ): TemplateFileMatch | null {
   const normalizedTemplateId = normalizeTemplateId(templateId);
+  const cacheKey = `${normalizedTemplateId}:${useCaseId}:${theme}`;
+  if (templateFileCache.has(cacheKey)) return templateFileCache.get(cacheKey) ?? null;
+
   const useCaseNeedle = useCaseId.toLowerCase();
   const themeNeedle = theme.toLowerCase();
   const masterTemplate = findMasterTemplate(normalizedTemplateId);
-
-  const candidates = Object.entries(rawTemplateFiles).filter(([path]) =>
-    belongsToTemplate(path, normalizedTemplateId)
-  );
+  const candidates = getTemplateCandidates(normalizedTemplateId);
   const useCaseTemplates = candidates
     .filter(([path]) => (path.split('/').pop()?.toLowerCase() ?? '').includes(useCaseNeedle))
     .sort(([firstPath], [secondPath]) => {
@@ -83,17 +98,22 @@ export function getHtmlTemplateFile(
   });
 
   const selectedTemplate = useCaseTemplates[0] ?? themeTemplate ?? masterTemplate;
-  if (!selectedTemplate) return null;
+  if (!selectedTemplate) {
+    templateFileCache.set(cacheKey, null);
+    return null;
+  }
   const selectedHtml = useCaseTemplates[0] && themeTemplate
     ? applyThemeTemplate(useCaseTemplates[0][1], themeTemplate[1], theme)
     : selectedTemplate[1];
 
-  return {
+  const templateFile = {
     html: selectedHtml,
     sourcePath: toDisplayPath(selectedTemplate[0]),
     masterHtml: masterTemplate?.[1],
     masterPath: masterTemplate ? toDisplayPath(masterTemplate[0]) : undefined,
   };
+  templateFileCache.set(cacheKey, templateFile);
+  return templateFile;
 }
 
 export function getTemplatePlaceholderDefinitions(
@@ -101,7 +121,12 @@ export function getTemplatePlaceholderDefinitions(
   useCaseId: UseCaseId,
   theme: Theme = 'light'
 ): TemplatePlaceholderDefinition[] {
-  const template = getHtmlTemplateFile(templateId, useCaseId, theme);
+  const normalizedTemplateId = normalizeTemplateId(templateId);
+  const cacheKey = `${normalizedTemplateId}:${useCaseId}:${theme}`;
+  const cachedDefinitions = placeholderDefinitionCache.get(cacheKey);
+  if (cachedDefinitions) return cachedDefinitions;
+
+  const template = getHtmlTemplateFile(normalizedTemplateId, useCaseId, theme);
   if (!template) return [];
 
   const doc = new DOMParser().parseFromString(template.html, 'text/html');
@@ -112,7 +137,7 @@ export function getTemplatePlaceholderDefinitions(
     const schema = JSON.parse(schemaText) as {
       placeholders?: Array<{ placeholder?: string; section?: string; type?: string; required?: boolean }>;
     };
-    return (schema.placeholders ?? [])
+    const definitions = (schema.placeholders ?? [])
       .filter(item => typeof item.placeholder === 'string')
       .map(item => ({
         name: item.placeholder!.replace('{{', '').replace('}}', '').trim(),
@@ -120,6 +145,8 @@ export function getTemplatePlaceholderDefinitions(
         type: item.type ?? 'text',
         required: item.required ?? false,
       }));
+    placeholderDefinitionCache.set(cacheKey, definitions);
+    return definitions;
   } catch {
     return [];
   }

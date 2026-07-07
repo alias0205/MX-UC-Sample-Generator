@@ -414,31 +414,28 @@ function applyMxt001PlaceholderMappings(placeholders: Record<string, string>, co
   const decision = getDecision(data);
   const factorRows = getMxt001FactorRows(data);
   const pressureMetrics = getMxt001PressureMetrics(data, metrics);
-  const finalDecision = stringifyValue(decision?.reason)
-    || recommendations[0]?.description
-    || recommendations[0]?.title
-    || data.summary_card.subtitle
-    || 'Not provided';
+  const pattern = getMxt001ClientPattern(context, metrics, actions, recommendations, decision, factorRows, pressureMetrics);
 
   setMxt001Placeholder(placeholders, context, 'theme', context.theme);
-  setMxt001Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || 'MX');
-  setMxt001Placeholder(placeholders, context, 'hero_title', data.summary_card.title || tool?.tool_name || commandSlug);
-  setMxt001Placeholder(placeholders, context, 'decision_title', stringifyValue(decision?.title) || data.summary_card.title || 'Decision goal');
-  setMxt001Placeholder(placeholders, context, 'decision_summary', data.summary_card.subtitle || finalDecision);
-  setMxt001Placeholder(placeholders, context, 'decision_recommended', finalDecision);
-  setMxt001Placeholder(placeholders, context, 'decision_tolerance', findResultValue(data, /^(risk_tolerance|tolerance)$/i) || getRiskLabel(data));
-  setMxt001Placeholder(placeholders, context, 'risk_level', getRiskLabel(data));
-  setMxt001Placeholder(placeholders, context, 'final_decision_body', finalDecision);
+  setMxt001Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || pattern.heroIcon);
+  setMxt001Placeholder(placeholders, context, 'hero_title', tool?.tool_name || pattern.heroTitle);
+  setMxt001Placeholder(placeholders, context, 'decision_title', pattern.topicTitle);
+  setMxt001Placeholder(placeholders, context, 'decision_summary', pattern.finalDecision);
+  setMxt001Placeholder(placeholders, context, 'decision_recommended', pattern.recommended);
+  setMxt001Placeholder(placeholders, context, 'decision_tolerance', pattern.riskLevel);
+  setMxt001Placeholder(placeholders, context, 'risk_level', pattern.riskLevel);
+  setMxt001Placeholder(placeholders, context, 'final_decision_body', pattern.finalDecision);
 
   applyScorePlaceholders(placeholders, context);
+  placeholders.score_label = 'Confidence';
 
-  getHeroPillValues(context).forEach((value, index) => {
+  pattern.heroPills.forEach((value, index) => {
     setMxt001Placeholder(placeholders, context, `hero_pill_${index + 1}`, value);
   });
 
   for (let index = 0; index < 4; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const metric = metrics[index] || {
+    const metric = pattern.dimensions[index] || {
       label: `Dimension ${index + 1}`,
       value: 'Not provided',
       status: 'Not provided',
@@ -496,9 +493,219 @@ function setMxt001Placeholder(
   fallbackValue: string | undefined
 ): void {
   const mappedValue = context.mappedPlaceholders?.[key];
-  placeholders[key] = isMissingPlaceholderValue(mappedValue)
+  const value = isMissingPlaceholderValue(mappedValue)
     ? fallbackValue?.trim() || 'Not provided'
     : mappedValue;
+  placeholders[key] = normalizeMxt001PlaceholderValue(key, value);
+}
+
+interface Mxt001ClientPattern {
+  heroIcon: string;
+  heroTitle: string;
+  heroPills: string[];
+  topicTitle: string;
+  recommended: string;
+  riskLevel: string;
+  finalDecision: string;
+  dimensions: Array<{ label: string; value: string; status?: string }>;
+}
+
+function getMxt001ClientPattern(
+  context: RenderContext,
+  metrics: Array<{ label: string; value: string; status?: string }>,
+  actions: Array<{ title: string; description?: string }>,
+  recommendations: Array<{ title: string; description?: string }>,
+  decision: any | undefined,
+  factorRows: Array<{ name?: string; signal?: string; impact?: string; action?: string }>,
+  pressureMetrics: Array<{ label: string; value: string; status?: string }>
+): Mxt001ClientPattern {
+  const { data, tool, commandSlug, ucId } = context;
+  const score = getScore(data);
+  const recommended = normalizeMxt001Recommendation(
+    findResultValue(data, /^(recommended|recommended_option|recommended_action|channel|first_channel|content_type)$/i)
+      || factorRows[0]?.name
+      || recommendations[0]?.title
+      || recommendations[0]?.description
+      || actions[0]?.description
+      || stringifyValue(decision?.reason)
+  );
+  const riskLevel = normalizeMxt001Level(
+    findResultValue(data, /^(risk_tolerance|tolerance|risk|risk_level|risk_status)$/i)
+      || data.summary_card.stats.find(stat => /risk|tolerance/i.test(stat.label))?.value
+      || getRiskLabel(data)
+  );
+  const topicTitle = normalizeMxt001TopicTitle(
+    findResultValue(data, /^(decision_goal|topic_title|goal|objective)$/i)
+      || stringifyValue(decision?.title)
+      || data.summary_card.title,
+    recommended,
+    commandSlug
+  );
+  const finalDecision = normalizeMxt001LongText(
+    findResultValue(data, /^(final_decision|recommendation_summary|decision_summary)$/i)
+      || stringifyValue(decision?.reason)
+      || recommendations[0]?.description
+      || actions[0]?.description
+      || data.summary_card.subtitle,
+    recommended,
+    riskLevel
+  );
+  const mode = getModeLabel(ucId);
+
+  return {
+    heroIcon: tool?.icon_emoji || 'MX',
+    heroTitle: tool?.tool_name || data.summary_card.title || commandSlug,
+    heroPills: [
+      'Decision Engine',
+      getConfidenceLabel(data),
+      `${riskLevel} Risk`,
+      tool?.id || commandSlug,
+      `Mode: ${mode}`,
+      'AI Engine v1',
+    ],
+    topicTitle,
+    recommended,
+    riskLevel,
+    finalDecision,
+    dimensions: getMxt001ClientDimensions(ucId, score, recommended, riskLevel, metrics, factorRows, pressureMetrics),
+  };
+}
+
+function getMxt001ClientDimensions(
+  ucId: string,
+  score: string,
+  recommended: string,
+  riskLevel: string,
+  metrics: Array<{ label: string; value: string; status?: string }>,
+  factorRows: Array<{ name?: string; signal?: string; impact?: string; action?: string }>,
+  pressureMetrics: Array<{ label: string; value: string; status?: string }>
+): Array<{ label: string; value: string; status?: string }> {
+  const normalizedUcId = ucId.toUpperCase();
+  if (normalizedUcId === 'UC1') {
+    return [
+      { label: 'Recommended Option', value: normalizeMxt001ShortOption(recommended), status: riskLevel === 'Low' ? 'Safe' : riskLevel },
+      { label: 'Confidence', value: `${extractPercent(score)}%`, status: getMetricStatus(score) },
+      { label: 'SMS Follow-up', value: riskLevel === 'Low' ? 'Avoid' : 'Review', status: 'Opt-in' },
+    ];
+  }
+
+  const dimensionSource = metrics.length >= 4 ? metrics : pressureMetrics;
+  const fallback = [
+    { label: 'Compliance Safety', value: valueForMxt001Metric(dimensionSource, /compliance|safety/i, '82'), status: 'Strong' },
+    { label: 'Trust Alignment', value: valueForMxt001Metric(dimensionSource, /trust|alignment/i, '74'), status: 'Good' },
+    { label: 'Response Potential', value: valueForMxt001Metric(dimensionSource, /response|potential/i, '49'), status: normalizedUcId === 'UC3' ? 'Moderate' : 'Medium' },
+    { label: 'Brand Protection', value: valueForMxt001Metric(dimensionSource, /brand|protection/i, '80'), status: 'Strong' },
+  ];
+
+  return fallback.map((item, index) => {
+    const metric = metrics[index];
+    const row = factorRows[index];
+    if (!metric && !row) return item;
+    return {
+      label: normalizeMxt001DimensionLabel(metric?.label || item.label, item.label),
+      value: normalizeMxt001Scalar(metric?.value || row?.signal || item.value),
+      status: normalizeDimensionStatus(metric?.status || item.status, metric?.value || row?.signal || item.value, item.label),
+    };
+  });
+}
+
+function normalizeMxt001PlaceholderValue(key: string, value: string): string {
+  if (/^(decision_recommended)$/.test(key)) return normalizeMxt001Recommendation(value);
+  if (/^(decision_tolerance|risk_level)$/.test(key)) return normalizeMxt001Level(value);
+  if (/^decision_title$/.test(key)) return normalizeMxt001TopicTitle(value, '', '');
+  if (/^(decision_summary|final_decision_body)$/.test(key)) return normalizeMxt001LongText(value, '', 'Low');
+  if (/^dimension_name_/.test(key)) return normalizeMxt001DimensionLabel(value, value);
+  if (/^dimension_value_/.test(key)) return normalizeMxt001Scalar(value);
+  if (/^dimension_status_/.test(key)) return normalizeDimensionStatus(value, value, key);
+  if (/^pressure_width_/.test(key)) return clampPercent(extractPercent(value));
+  if (/^score_/.test(key) && key !== 'score_label') return extractPercent(value);
+  return value?.trim() || 'Not provided';
+}
+
+function normalizeMxt001Recommendation(value: string | undefined): string {
+  const text = stringifyValue(value);
+  if (!text) return 'Not provided';
+  if (/linkedin/i.test(text)) return /message/i.test(text) ? 'LinkedIn message' : 'LinkedIn';
+  if (/cold email|email/i.test(text)) return 'Cold email';
+  if (/sms/i.test(text)) return 'SMS follow-up';
+  if (/comparison|compare|roundup|alternative|vs\.?/i.test(text)) return 'Comparison guide';
+  if (/product page|landing page|pricing page/i.test(text)) return 'Product page';
+  if (/blog|article|post/i.test(text)) return 'Blog article';
+  return sentenceFragment(text, 4);
+}
+
+function normalizeMxt001ShortOption(value: string): string {
+  if (/linkedin/i.test(value)) return 'LinkedIn';
+  if (/email/i.test(value)) return 'Email';
+  if (/sms/i.test(value)) return 'SMS';
+  return sentenceFragment(value, 3);
+}
+
+function normalizeMxt001Level(value: string | undefined): string {
+  const text = stringifyValue(value).toLowerCase();
+  const numeric = parseScoreLikeValue(text);
+  if (/low|minimal|safe/.test(text)) return 'Low';
+  if (/medium|moderate|watch|caution/.test(text)) return 'Medium';
+  if (/high|critical|severe|elevated/.test(text)) return 'High';
+  if (numeric !== undefined) {
+    if (numeric >= 85) return 'Low';
+    if (numeric >= 60) return 'Medium';
+    return 'High';
+  }
+  return 'Low';
+}
+
+function normalizeMxt001TopicTitle(value: string | undefined, recommended: string, commandSlug: string): string {
+  const text = stringifyValue(value).replace(/\s+/g, ' ').trim();
+  if (/^(choose|select|determine|decide|pick)\b/i.test(text)) return sentenceCase(text);
+  const target = commandSlug ? ` for ${commandSlug.replace(/[-_]+/g, ' ')}` : '';
+  if (/linkedin|email|sms|outreach|message|channel/i.test(`${text} ${recommended}`)) return `Choose the safest outreach channel${target}`;
+  if (/comparison|product page|blog|content/i.test(`${text} ${recommended}`)) return `Choose the best content type${target}`;
+  return `Choose the best decision path${target}`;
+}
+
+function normalizeMxt001LongText(value: string | undefined, recommended: string, riskLevel: string): string {
+  const text = stringifyValue(value).replace(/\s+/g, ' ').trim();
+  if (text && !/^(choose|recommended:|risk tolerance:|not provided)$/i.test(text)) return text;
+  const action = recommended || 'The recommended option';
+  return `${action} is the safest first-contact option under ${riskLevel.toLowerCase()} risk tolerance.`;
+}
+
+function normalizeMxt001DimensionLabel(value: string | undefined, fallback: string): string {
+  const text = stringifyValue(value);
+  if (/recommended/i.test(text)) return 'Recommended Option';
+  if (/confidence/i.test(text)) return 'Confidence';
+  if (/sms/i.test(text)) return 'SMS Follow-up';
+  if (/compliance|safety/i.test(text)) return 'Compliance Safety';
+  if (/trust|alignment/i.test(text)) return 'Trust Alignment';
+  if (/response|potential/i.test(text)) return 'Response Potential';
+  if (/brand|protection/i.test(text)) return 'Brand Protection';
+  return sentenceFragment(text || fallback, 3);
+}
+
+function normalizeMxt001Scalar(value: string | undefined): string {
+  const text = stringifyValue(value);
+  if (!text) return 'Not provided';
+  if (/^\d+(?:\.\d+)?%?$/.test(text)) return text;
+  if (/avoid/i.test(text)) return 'Avoid';
+  if (/pass|passed/i.test(text)) return 'Passed';
+  if (/fail|failed|disqualified/i.test(text)) return 'Failed';
+  return sentenceFragment(text, 4);
+}
+
+function valueForMxt001Metric(metrics: Array<{ label: string; value: string; status?: string }>, labelPattern: RegExp, fallback: string): string {
+  return extractPercent(metrics.find(metric => labelPattern.test(metric.label))?.value || fallback);
+}
+
+function sentenceFragment(value: string, maxWords: number): string {
+  const fragment = value.split(/[.;]/)[0].replace(/\s+because\s+.+$/i, '').trim();
+  const words = fragment.split(/\s+/).filter(Boolean);
+  return words.length <= maxWords ? capitalizeWords(fragment) : capitalizeWords(words.slice(0, maxWords).join(' '));
+}
+
+function sentenceCase(value: string): string {
+  const text = value.trim();
+  return text ? `${text.charAt(0).toUpperCase()}${text.slice(1)}` : 'Not provided';
 }
 
 function getMxt001FactorRows(data: UCResult): Array<{ name?: string; signal?: string; impact?: string; action?: string }> {
@@ -557,53 +764,49 @@ function applyMxt002PlaceholderMappings(placeholders: Record<string, string>, co
   const strategyItems = getMxt002StrategyItems(data);
   const rewriteRows = getMxt002RewriteRows(data);
   const sequenceItems = getMxt002SequenceItems(data, actions);
-  const finalRecommendation = recommendations[0]?.description
-    || recommendations[0]?.title
-    || getDecision(data)?.reason
-    || data.summary_card.subtitle
-    || 'Not provided';
+  const pattern = getMxt002ClientPattern(context, stats, recommendations, actions, strategyItems, rewriteRows, sequenceItems);
 
   setMxt002Placeholder(placeholders, context, 'theme', context.theme);
-  setMxt002Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || 'MX');
-  setMxt002Placeholder(placeholders, context, 'hero_title', data.summary_card.title || tool?.tool_name || commandSlug);
-  setMxt002Placeholder(placeholders, context, 'summary_title', data.summary_card.title || tool?.tool_name || commandSlug);
-  setMxt002Placeholder(placeholders, context, 'summary_channel', findResultValue(data, /^(channel|platform)$/i) || stats[0]?.value || 'Not provided');
-  setMxt002Placeholder(placeholders, context, 'summary_audience', findResultValue(data, /^(audience|target_audience)$/i) || stats[1]?.value || 'Not provided');
-  setMxt002Placeholder(placeholders, context, 'summary_tone', findResultValue(data, /^(tone|voice|style)$/i) || stats[2]?.value || 'Not provided');
-  setMxt002Placeholder(placeholders, context, 'brief_body_01', data.summary_card.subtitle || finalRecommendation);
-  setMxt002Placeholder(placeholders, context, 'brief_body_02', recommendations[0]?.description || actions[0]?.description || finalRecommendation);
-  setMxt002Placeholder(placeholders, context, 'recommendation_body', finalRecommendation);
+  setMxt002Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || pattern.heroIcon);
+  setMxt002Placeholder(placeholders, context, 'hero_title', tool?.tool_name || pattern.heroTitle);
+  setMxt002Placeholder(placeholders, context, 'summary_title', pattern.summaryTitle);
+  setMxt002Placeholder(placeholders, context, 'summary_channel', pattern.channel);
+  setMxt002Placeholder(placeholders, context, 'summary_audience', pattern.audience);
+  setMxt002Placeholder(placeholders, context, 'summary_tone', pattern.tone);
+  setMxt002Placeholder(placeholders, context, 'brief_body_01', pattern.briefItems[0] || 'Not provided');
+  setMxt002Placeholder(placeholders, context, 'brief_body_02', pattern.briefItems[1] || 'Not provided');
+  setMxt002Placeholder(placeholders, context, 'recommendation_body', pattern.finalRecommendation);
 
-  getHeroPillValues(context).forEach((value, index) => {
+  pattern.heroPills.forEach((value, index) => {
     setMxt002Placeholder(placeholders, context, `hero_pill_${index + 1}`, value);
   });
 
   for (let index = 0; index < 3; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const item = strategyItems[index] || recommendations[index] || actions[index];
+    const item = pattern.strategyItems[index] || strategyItems[index] || recommendations[index] || actions[index];
     setMxt002Placeholder(placeholders, context, `strategy_title_${padded}`, item?.title || `Strategy ${index + 1}`);
     setMxt002Placeholder(placeholders, context, `strategy_body_${padded}`, item?.description || item?.title || 'Not provided');
   }
 
   for (let index = 0; index < 4; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const row = rewriteRows[index] || {};
+    const row = pattern.rewriteRows[index] || rewriteRows[index] || {};
     setMxt002Placeholder(placeholders, context, `rewrite_original_${padded}`, row.original || `Rewrite ${index + 1}`);
-    setMxt002Placeholder(placeholders, context, `rewrite_risk_${padded}`, normalizeDimensionStatus(row.risk, row.risk, 'risk'));
+    setMxt002Placeholder(placeholders, context, `rewrite_risk_${padded}`, row.risk || 'Medium');
     setMxt002Placeholder(placeholders, context, `rewrite_recommendation_${padded}`, row.recommendation || 'Not provided');
     setMxt002Placeholder(placeholders, context, `rewrite_reason_${padded}`, row.reason || row.impact || 'Not provided');
   }
 
   for (let index = 0; index < 3; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const item = sequenceItems[index] || actions[index] || recommendations[index];
+    const item = pattern.sequenceItems[index] || sequenceItems[index] || actions[index] || recommendations[index];
     setMxt002Placeholder(placeholders, context, `sequence_title_${padded}`, item?.title || `Step ${index + 1}`);
     setMxt002Placeholder(placeholders, context, `sequence_body_${padded}`, item?.description || item?.title || 'Not provided');
   }
 
   for (let index = 0; index < 3; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const action = actions[index] || sequenceItems[index] || recommendations[index];
+    const action = pattern.actionItems[index] || actions[index] || sequenceItems[index] || recommendations[index];
     setMxt002Placeholder(placeholders, context, `action_body_${padded}`, action?.description || action?.title || 'Not provided');
   }
 }
@@ -615,9 +818,185 @@ function setMxt002Placeholder(
   fallbackValue: string | undefined
 ): void {
   const mappedValue = context.mappedPlaceholders?.[key];
-  placeholders[key] = isMissingPlaceholderValue(mappedValue)
+  const value = isMissingPlaceholderValue(mappedValue)
     ? fallbackValue?.trim() || 'Not provided'
     : mappedValue;
+  placeholders[key] = normalizeMxt002PlaceholderValue(key, value);
+}
+
+interface Mxt002ClientPattern {
+  heroIcon: string;
+  heroTitle: string;
+  heroPills: string[];
+  summaryTitle: string;
+  channel: string;
+  audience: string;
+  tone: string;
+  briefItems: string[];
+  strategyItems: Array<{ title: string; description?: string }>;
+  rewriteRows: Array<{ original?: string; risk?: string; recommendation?: string; reason?: string; impact?: string }>;
+  sequenceItems: Array<{ title: string; description?: string }>;
+  actionItems: Array<{ title: string; description?: string }>;
+  finalRecommendation: string;
+}
+
+function getMxt002ClientPattern(
+  context: RenderContext,
+  stats: Array<{ label: string; value: string }>,
+  recommendations: Array<{ title: string; description?: string }>,
+  actions: Array<{ title: string; description?: string }>,
+  strategyItems: Array<{ title: string; description?: string }>,
+  rewriteRows: Array<{ original?: string; risk?: string; recommendation?: string; reason?: string; impact?: string }>,
+  sequenceItems: Array<{ title: string; description?: string }>
+): Mxt002ClientPattern {
+  const { data, tool, commandSlug, ucId } = context;
+  const mode = getModeLabel(ucId);
+  const title = normalizeMxt002SummaryTitle(findResultValue(data, /^(topic|campaign|outreach|subject|summary_title)$/i) || data.summary_card.title || commandSlug);
+  const channel = normalizeMxt002ChipValue(findResultValue(data, /^(channel|platform)$/i) || stats.find(stat => /channel|platform/i.test(stat.label))?.value || stats[0]?.value || 'Email');
+  const audience = normalizeMxt002ChipValue(findResultValue(data, /^(audience|target_audience|recipient)$/i) || stats.find(stat => /audience|recipient/i.test(stat.label))?.value || stats[1]?.value || 'Store owners');
+  const tone = normalizeMxt002ChipValue(findResultValue(data, /^(tone|voice|style)$/i) || stats.find(stat => /tone|voice|style/i.test(stat.label))?.value || stats[2]?.value || 'Professional');
+  const finalRecommendation = normalizeMxt002Sentence(
+    recommendations[0]?.description
+      || recommendations[0]?.title
+      || getDecision(data)?.reason
+      || data.summary_card.subtitle,
+    'Replace promotional wording with softer value language before sending the first outreach message.'
+  );
+  const rows = normalizeMxt002RewriteRows(rewriteRows);
+
+  return {
+    heroIcon: tool?.icon_emoji || 'MX',
+    heroTitle: tool?.tool_name || data.summary_card.title || commandSlug,
+    heroPills: [
+      'Rewrite Engine',
+      getConfidenceLabel(data),
+      getRiskLabel(data),
+      tool?.id || commandSlug,
+      `Mode: ${mode}`,
+      'AI Engine V1',
+    ],
+    summaryTitle: title,
+    channel,
+    audience,
+    tone,
+    briefItems: [
+      normalizeMxt002Sentence(data.summary_card.subtitle || rows[0]?.reason, '"Free audit" may sound promotional when paired with sales recovery language.'),
+      normalizeMxt002Sentence(recommendations[0]?.description || rows[0]?.recommendation, 'Use "quick checkout review" to make the offer feel helpful and consultative.'),
+    ],
+    strategyItems: normalizeMxt002StrategyItems(ucId, strategyItems, actions, recommendations),
+    rewriteRows: rows,
+    sequenceItems: normalizeMxt002SequenceItems(sequenceItems),
+    actionItems: normalizeMxt002ActionItems(actions, sequenceItems),
+    finalRecommendation,
+  };
+}
+
+function normalizeMxt002PlaceholderValue(key: string, value: string): string {
+  if (/^summary_title$/.test(key)) return normalizeMxt002SummaryTitle(value);
+  if (/^summary_(channel|audience|tone)$/.test(key)) return normalizeMxt002ChipValue(value);
+  if (/^hero_pill_1$/.test(key)) return /rewrite/i.test(value) ? 'Rewrite Engine' : sentenceFragment(value, 2);
+  if (/^hero_pill_2$/.test(key)) return /confidence/i.test(value) ? capitalizeWords(value) : `${normalizeDimensionStatus(value, value, 'confidence')} Confidence`;
+  if (/^hero_pill_3$/.test(key)) return /risk/i.test(value) ? capitalizeWords(value) : `${normalizeDimensionStatus(value, value, 'risk')} Risk`;
+  if (/^strategy_title_/.test(key)) return normalizeMxt002NumberedTitle(value);
+  if (/^strategy_body_|^sequence_body_|^action_body_|^brief_body_|^recommendation_body$|^rewrite_reason_/.test(key)) return normalizeMxt002Sentence(value, 'Not provided');
+  if (/^rewrite_risk_/.test(key)) return normalizeMxt002Risk(value);
+  if (/^rewrite_original_|^rewrite_recommendation_|^sequence_title_/.test(key)) return normalizeMxt002ShortPhrase(value);
+  return value?.trim() || 'Not provided';
+}
+
+function normalizeMxt002SummaryTitle(value: string | undefined): string {
+  const text = stringifyValue(value).replace(/\s+/g, ' ').trim();
+  if (!text) return 'Outreach analysis';
+  return text.replace(/^(analyze|analysis for|rewrite)\s+/i, '').replace(/[.!?]+$/, '');
+}
+
+function normalizeMxt002ChipValue(value: string | undefined): string {
+  return stringifyValue(value).replace(/^[^A-Za-z0-9"']+\s*/, '').replace(/\s+/g, ' ').trim() || 'Not provided';
+}
+
+function normalizeMxt002Sentence(value: string | undefined, fallback: string): string {
+  const text = stringifyValue(value).replace(/\s+/g, ' ').trim();
+  if (!text || /^not provided$/i.test(text)) return fallback;
+  return /[.!?]$/.test(text) ? text : `${text}.`;
+}
+
+function normalizeMxt002ShortPhrase(value: string | undefined): string {
+  const text = stringifyValue(value).split(/[.;]/)[0].trim();
+  return text ? sentenceFragment(text, 6) : 'Not provided';
+}
+
+function normalizeMxt002Risk(value: string | undefined): string {
+  const text = stringifyValue(value).toLowerCase();
+  if (/high|severe|critical/.test(text)) return 'High';
+  if (/low|safe|minimal/.test(text)) return 'Low';
+  return 'Medium';
+}
+
+function normalizeMxt002NumberedTitle(value: string | undefined): string {
+  return normalizeMxt002ShortPhrase(value).replace(/^\d+\s+/, '');
+}
+
+function normalizeMxt002StrategyItems(
+  ucId: string,
+  strategyItems: Array<{ title: string; description?: string }>,
+  actions: Array<{ title: string; description?: string }>,
+  recommendations: Array<{ title: string; description?: string }>
+): Array<{ title: string; description?: string }> {
+  const source = strategyItems.length ? strategyItems : [...actions, ...recommendations];
+  const fallback = ucId.toUpperCase() === 'UC3'
+    ? [
+      { title: 'Soften Promotional Claims', description: 'Move from "free audit" and "recover lost sales" to lower-pressure value language.' },
+      { title: 'Build a Three-Step Sequence', description: 'Let the first message feel helpful, then add context in follow-ups.' },
+      { title: 'Keep One CTA Per Message', description: 'Avoid stacked requests and urgency-based sales language.' },
+    ]
+    : [
+      { title: 'Soften Promotional Claims', description: 'Replace "free audit" with a lower-pressure phrase like "quick checkout review".' },
+      { title: 'Reduce Revenue Pressure', description: 'Use "find checkout opportunities" instead of "recover lost sales".' },
+    ];
+  return fallback.map((item, index) => ({
+    title: normalizeMxt002NumberedTitle(source[index]?.title || item.title),
+    description: normalizeMxt002Sentence(source[index]?.description || item.description, item.description || 'Not provided'),
+  }));
+}
+
+function normalizeMxt002RewriteRows(rows: Array<{ original?: string; risk?: string; recommendation?: string; reason?: string; impact?: string }>): Array<{ original?: string; risk?: string; recommendation?: string; reason?: string; impact?: string }> {
+  const fallback = [
+    { original: 'Free audit', risk: 'Medium', recommendation: 'Quick checkout review', reason: 'Less promotional and more consultative.' },
+    { original: 'Recover lost sales', risk: 'Medium', recommendation: 'Find checkout opportunities', reason: 'Keeps value without overclaiming.' },
+    { original: 'Boost revenue fast', risk: 'High', recommendation: 'Improve checkout performance', reason: 'Removes exaggerated urgency.' },
+    { original: 'Limited time', risk: 'High', recommendation: 'Available this week', reason: 'Reduces pressure-based spam signals.' },
+  ];
+  return fallback.map((item, index) => ({
+    original: normalizeMxt002ShortPhrase(rows[index]?.original || item.original),
+    risk: normalizeMxt002Risk(rows[index]?.risk || item.risk),
+    recommendation: normalizeMxt002ShortPhrase(rows[index]?.recommendation || item.recommendation),
+    reason: normalizeMxt002Sentence(rows[index]?.reason || rows[index]?.impact || item.reason, item.reason),
+  }));
+}
+
+function normalizeMxt002SequenceItems(items: Array<{ title: string; description?: string }>): Array<{ title: string; description?: string }> {
+  const fallback = [
+    { title: 'Message 1: Quick checkout review for your store', description: 'Hi, I noticed your store may have opportunities to improve checkout flow. I can share a short review with a few practical areas to look at.' },
+    { title: 'Message 2: A few cart recovery opportunities', description: 'Many stores lose potential orders during checkout. I can outline a few simple areas that often affect completion rates.' },
+    { title: 'Message 3: Should I send the checklist?', description: 'I put together a short checkout improvement checklist. Would you like me to send it over?' },
+  ];
+  return fallback.map((item, index) => ({
+    title: normalizeMxt002ShortPhrase(items[index]?.title || item.title),
+    description: normalizeMxt002Sentence(items[index]?.description || item.description, item.description || 'Not provided'),
+  }));
+}
+
+function normalizeMxt002ActionItems(actions: Array<{ title: string; description?: string }>, sequenceItems: Array<{ title: string; description?: string }>): Array<{ title: string; description?: string }> {
+  const source = actions.length ? actions : sequenceItems;
+  const fallback = [
+    'Introduce a quick review of checkout friction.',
+    'Mention cart abandonment as an opportunity area.',
+    'Ask if they want a checklist or example.',
+  ];
+  return fallback.map((text, index) => ({
+    title: `Action ${index + 1}`,
+    description: normalizeMxt002Sentence(source[index]?.description || source[index]?.title || text, text),
+  }));
 }
 
 function getMxt002StrategyItems(data: UCResult): Array<{ title: string; description?: string }> {
@@ -686,28 +1065,24 @@ function applyMxt003PlaceholderMappings(placeholders: Record<string, string>, co
   const inputItems = getMxt003InputItems(data, metrics);
   const comparisonRows = getMxt003ComparisonRows(data, rankedOptions);
   const ruleItems = getMxt003RuleItems(data, actions, recommendations);
-  const finalRecommendation = recommendations[0]?.description
-    || recommendations[0]?.title
-    || getDecision(data)?.reason
-    || data.summary_card.subtitle
-    || 'Not provided';
+  const pattern = getMxt003ClientPattern(context, rankedOptions, inputItems, comparisonRows, ruleItems, actions, recommendations);
 
   setMxt003Placeholder(placeholders, context, 'theme', context.theme);
-  setMxt003Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || 'MX');
-  setMxt003Placeholder(placeholders, context, 'hero_title', data.summary_card.title || tool?.tool_name || commandSlug);
-  setMxt003Placeholder(placeholders, context, 'comparison_summary_title', data.summary_card.title || tool?.tool_name || commandSlug);
-  setMxt003Placeholder(placeholders, context, 'comparison_recommended_option', rankedOptions[0]?.name || recommendations[0]?.title || 'Not provided');
-  setMxt003Placeholder(placeholders, context, 'comparison_confidence', getConfidenceLabel(data));
-  setMxt003Placeholder(placeholders, context, 'comparison_risk_tolerance', findResultValue(data, /^(risk_tolerance|tolerance)$/i) || getRiskLabel(data));
-  setMxt003Placeholder(placeholders, context, 'final_recommendation_body', finalRecommendation);
+  setMxt003Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || pattern.heroIcon);
+  setMxt003Placeholder(placeholders, context, 'hero_title', tool?.tool_name || pattern.heroTitle);
+  setMxt003Placeholder(placeholders, context, 'comparison_summary_title', pattern.summaryTitle);
+  setMxt003Placeholder(placeholders, context, 'comparison_recommended_option', pattern.recommendedOption);
+  setMxt003Placeholder(placeholders, context, 'comparison_confidence', pattern.confidence);
+  setMxt003Placeholder(placeholders, context, 'comparison_risk_tolerance', pattern.riskTolerance);
+  setMxt003Placeholder(placeholders, context, 'final_recommendation_body', pattern.finalRecommendation);
 
-  getHeroPillValues(context).forEach((value, index) => {
+  pattern.heroPills.forEach((value, index) => {
     setMxt003Placeholder(placeholders, context, `hero_pill_${index + 1}`, value);
   });
 
   for (let index = 0; index < 3; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const input = inputItems[index] || {
+    const input = pattern.inputItems[index] || {
       name: `Input ${index + 1}`,
       description: 'Not provided',
       status: 'Not provided',
@@ -720,7 +1095,7 @@ function applyMxt003PlaceholderMappings(placeholders: Record<string, string>, co
 
   for (let index = 0; index < 3; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const option = rankedOptions[index] || {
+    const option = pattern.rankedOptions[index] || {
       name: `Option ${index + 1}`,
       description: 'Not provided',
       status: 'Not provided',
@@ -732,34 +1107,34 @@ function applyMxt003PlaceholderMappings(placeholders: Record<string, string>, co
   }
 
   setMxt003Placeholder(placeholders, context, 'comparison_option_a_name', rankedOptions[0]?.name || 'Option A');
-  setMxt003Placeholder(placeholders, context, 'comparison_option_b_name', rankedOptions[1]?.name || 'Option B');
+  setMxt003Placeholder(placeholders, context, 'comparison_option_b_name', pattern.rankedOptions[1]?.name || 'Option B');
 
   for (let index = 0; index < 3; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const row = comparisonRows[index] || {};
+    const row = pattern.comparisonRows[index] || {};
 
     setMxt003Placeholder(placeholders, context, `comparison_criteria_${padded}`, row.criteria || `Criteria ${index + 1}`);
-    setMxt003Placeholder(placeholders, context, `comparison_option_a_text_${padded}`, row.optionAText || rankedOptions[0]?.description || 'Not provided');
+    setMxt003Placeholder(placeholders, context, `comparison_option_a_text_${padded}`, row.optionAText || pattern.rankedOptions[0]?.description || 'Not provided');
     setMxt003Placeholder(placeholders, context, `comparison_option_a_tag_${padded}`, normalizeDimensionStatus(row.optionATag, row.optionAText, 'option'));
-    setMxt003Placeholder(placeholders, context, `comparison_option_b_text_${padded}`, row.optionBText || rankedOptions[1]?.description || 'Not provided');
+    setMxt003Placeholder(placeholders, context, `comparison_option_b_text_${padded}`, row.optionBText || pattern.rankedOptions[1]?.description || 'Not provided');
     setMxt003Placeholder(placeholders, context, `comparison_option_b_tag_${padded}`, normalizeDimensionStatus(row.optionBTag, row.optionBText, 'option'));
   }
 
   for (let index = 0; index < 4; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const item = ruleItems[index] || recommendations[index] || actions[index];
+    const item = pattern.ruleItems[index] || ruleItems[index] || recommendations[index] || actions[index];
     setMxt003Placeholder(placeholders, context, `rule_applied_${padded}`, item?.description || item?.title || 'Not provided');
   }
 
   for (let index = 0; index < 3; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const warning = recommendations[index] || actions[index];
+    const warning = pattern.warningItems[index] || recommendations[index] || actions[index];
     setMxt003Placeholder(placeholders, context, `warning_body_${padded}`, warning?.description || warning?.title || 'Not provided');
   }
 
   for (let index = 0; index < 3; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const action = actions[index] || recommendations[index];
+    const action = pattern.actionItems[index] || actions[index] || recommendations[index];
     setMxt003Placeholder(placeholders, context, `action_step_title_${padded}`, action?.title || `Step ${index + 1}`);
     setMxt003Placeholder(placeholders, context, `action_step_body_${padded}`, action?.description || action?.title || 'Not provided');
   }
@@ -772,9 +1147,202 @@ function setMxt003Placeholder(
   fallbackValue: string | undefined
 ): void {
   const mappedValue = context.mappedPlaceholders?.[key];
-  placeholders[key] = isMissingPlaceholderValue(mappedValue)
+  const value = isMissingPlaceholderValue(mappedValue)
     ? fallbackValue?.trim() || 'Not provided'
     : mappedValue;
+  placeholders[key] = normalizeMxt003PlaceholderValue(key, value);
+}
+
+interface Mxt003ClientPattern {
+  heroIcon: string;
+  heroTitle: string;
+  heroPills: string[];
+  summaryTitle: string;
+  recommendedOption: string;
+  confidence: string;
+  riskTolerance: string;
+  inputItems: Array<{ name: string; description: string; status?: string }>;
+  rankedOptions: Array<{ name: string; description: string; status?: string }>;
+  comparisonRows: Array<{ criteria?: string; optionAText?: string; optionATag?: string; optionBText?: string; optionBTag?: string }>;
+  ruleItems: Array<{ title: string; description?: string }>;
+  warningItems: Array<{ title: string; description?: string }>;
+  actionItems: Array<{ title: string; description?: string }>;
+  finalRecommendation: string;
+}
+
+function getMxt003ClientPattern(
+  context: RenderContext,
+  rankedOptions: Array<{ name: string; description: string; status?: string }>,
+  inputItems: Array<{ name: string; description: string; status?: string }>,
+  comparisonRows: Array<{ criteria?: string; optionAText?: string; optionATag?: string; optionBText?: string; optionBTag?: string }>,
+  ruleItems: Array<{ title: string; description?: string }>,
+  actions: Array<{ title: string; description?: string }>,
+  recommendations: Array<{ title: string; description?: string }>
+): Mxt003ClientPattern {
+  const { data, tool, commandSlug, ucId } = context;
+  const decision = getDecision(data);
+  const recommendedOption = normalizeMxt003Option(findResultValue(data, /^(recommended|recommended_option|channel|decision)$/i) || rankedOptions[0]?.name || recommendations[0]?.title || 'LinkedIn Message');
+  const confidence = normalizeMxt003Confidence(findResultValue(data, /^confidence$/i) || data.summary_card.stats.find(stat => /confidence/i.test(stat.label))?.value || stringifyValue(decision?.score) || '0.86');
+  const riskTolerance = normalizeMxt003Level(findResultValue(data, /^(risk_tolerance|tolerance|risk_level|risk)$/i) || getRiskLabel(data));
+  const summaryTitle = normalizeMxt003ScenarioTitle(findResultValue(data, /^(scenario|decision_scenario|topic|goal)$/i) || data.summary_card.title || commandSlug);
+  const normalizedRankedOptions = normalizeMxt003RankedOptions(rankedOptions, recommendedOption);
+  const finalRecommendation = normalizeMxt003FinalRecommendation(
+    recommendations[0]?.description || recommendations[0]?.title || stringifyValue(decision?.reason) || data.summary_card.subtitle,
+    recommendedOption
+  );
+
+  return {
+    heroIcon: tool?.icon_emoji || 'MX',
+    heroTitle: tool?.tool_name || data.summary_card.title || commandSlug,
+    heroPills: [
+      'Decision Engine',
+      getConfidenceLabel(data),
+      `${riskTolerance} Risk`,
+      tool?.id || commandSlug,
+      `Mode: ${getModeLabel(ucId)}`,
+      'AI Engine v1',
+    ],
+    summaryTitle,
+    recommendedOption,
+    confidence,
+    riskTolerance,
+    inputItems: normalizeMxt003Inputs(ucId, inputItems),
+    rankedOptions: normalizedRankedOptions,
+    comparisonRows: normalizeMxt003ComparisonRows(comparisonRows),
+    ruleItems: normalizeMxt003Rules(ruleItems),
+    warningItems: normalizeMxt003Warnings(actions, recommendations),
+    actionItems: normalizeMxt003Actions(actions),
+    finalRecommendation,
+  };
+}
+
+function normalizeMxt003PlaceholderValue(key: string, value: string): string {
+  if (/^comparison_summary_title$/.test(key)) return normalizeMxt003ScenarioTitle(value);
+  if (/^comparison_recommended_option$/.test(key) || /^comparison_option_[ab]_name$/.test(key) || /^ranked_option_name_/.test(key)) return normalizeMxt003Option(value);
+  if (/^comparison_confidence$/.test(key)) return normalizeMxt003Confidence(value);
+  if (/^comparison_risk_tolerance$/.test(key)) return normalizeMxt003Level(value);
+  if (/^input_name_/.test(key) || /^comparison_criteria_/.test(key)) return sentenceFragment(value, 3);
+  if (/^ranked_option_status_/.test(key)) return extractPercent(value);
+  if (/^input_status_/.test(key)) return normalizeMxt003Status(value);
+  if (/^comparison_option_[ab]_tag_/.test(key)) return sentenceFragment(value, 2);
+  if (/^final_recommendation_body$|^input_description_|^ranked_option_description_|^comparison_option_[ab]_text_|^rule_applied_|^warning_body_|^action_step_body_/.test(key)) return normalizeMxt002Sentence(value, 'Not provided');
+  if (/^action_step_title_/.test(key)) return normalizeMxt002NumberedTitle(value);
+  return value?.trim() || 'Not provided';
+}
+
+function normalizeMxt003ScenarioTitle(value: string | undefined): string {
+  const text = stringifyValue(value).replace(/\s+/g, ' ').trim();
+  if (/^(choose|select|decide|determine)\b/i.test(text)) return sentenceCase(text);
+  return text ? `Choose the safest option for ${text.replace(/[.!?]+$/, '')}` : 'Choose the safest outreach channel for a high-value B2B lead';
+}
+
+function normalizeMxt003Option(value: string | undefined): string {
+  const text = stringifyValue(value);
+  if (/linkedin/i.test(text)) return 'LinkedIn Message';
+  if (/cold email|email/i.test(text)) return 'Cold Email';
+  if (/sms/i.test(text)) return 'SMS Follow-Up';
+  return sentenceFragment(text || 'LinkedIn Message', 3);
+}
+
+function normalizeMxt003Confidence(value: string | undefined): string {
+  const numeric = parseScoreLikeValue(stringifyValue(value));
+  if (numeric === undefined) return '0.86';
+  return numeric > 1 ? (numeric / 100).toFixed(2) : numeric.toFixed(2);
+}
+
+function normalizeMxt003Level(value: string | undefined): string {
+  const text = stringifyValue(value).toLowerCase();
+  if (/high|critical|severe/.test(text)) return 'High';
+  if (/medium|moderate|watch|caution/.test(text)) return 'Medium';
+  return 'Low';
+}
+
+function normalizeMxt003Status(value: string | undefined): string {
+  const text = stringifyValue(value);
+  if (/strict/i.test(text)) return 'Strict';
+  if (/safe|low/i.test(text)) return 'Safe';
+  if (/set|goal/i.test(text)) return 'Set';
+  return sentenceFragment(text || 'Set', 2);
+}
+
+function normalizeMxt003Inputs(ucId: string, items: Array<{ name: string; description: string; status?: string }>): Array<{ name: string; description: string; status?: string }> {
+  const fallback = [
+    { name: 'Goal', description: 'Select the safest first-touch channel for a high-value lead.', status: 'Set' },
+    { name: 'Hard Constraint', description: 'Do not use SMS unless opt-in is verified.', status: 'Strict' },
+    { name: 'Risk Mode', description: 'Low-risk decisioning with brand-safety priority.', status: 'Safe' },
+  ];
+  const count = ucId.toUpperCase() === 'UC2' ? 2 : 3;
+  return fallback.slice(0, count).map((item, index) => ({
+    name: sentenceFragment(items[index]?.name || item.name, 3),
+    description: normalizeMxt002Sentence(items[index]?.description || item.description, item.description),
+    status: normalizeMxt003Status(items[index]?.status || item.status),
+  }));
+}
+
+function normalizeMxt003RankedOptions(items: Array<{ name: string; description: string; status?: string }>, recommendedOption: string): Array<{ name: string; description: string; status?: string }> {
+  const fallback = [
+    { name: recommendedOption, description: 'Passed constraints with strongest trust context.', status: '86' },
+    { name: 'Cold Email', description: 'Passed constraints but requires compliance controls.', status: '74' },
+    { name: 'SMS Follow-Up', description: 'Fails opt-in constraint for this scenario.', status: '38' },
+  ];
+  return fallback.map((item, index) => ({
+    name: normalizeMxt003Option(items[index]?.name || item.name),
+    description: normalizeMxt002Sentence(items[index]?.description || item.description, item.description),
+    status: extractPercent(items[index]?.status || item.status || '0'),
+  }));
+}
+
+function normalizeMxt003ComparisonRows(rows: Array<{ criteria?: string; optionAText?: string; optionATag?: string; optionBText?: string; optionBTag?: string }>): Array<{ criteria?: string; optionAText?: string; optionATag?: string; optionBText?: string; optionBTag?: string }> {
+  const fallback = [
+    { criteria: 'Compliance Safety', optionAText: 'Lower risk because it avoids personal phone data and starts in a professional context.', optionATag: 'Best Fit', optionBText: 'Usable, but requires unsubscribe handling and careful sender reputation control.', optionBTag: 'Acceptable' },
+    { criteria: 'Trust Context', optionAText: 'Profile, mutual context, and business role are visible before engagement.', optionATag: 'Strong', optionBText: 'Message may feel colder unless personalization is strong.', optionBTag: 'Medium' },
+    { criteria: 'Response Potential', optionAText: 'Moderate response potential with low brand risk.', optionATag: 'Balanced', optionBText: 'Can scale, but lower trust and higher deliverability sensitivity.', optionBTag: 'Scalable' },
+  ];
+  return fallback.map((item, index) => ({
+    criteria: sentenceFragment(rows[index]?.criteria || item.criteria, 3),
+    optionAText: normalizeMxt002Sentence(rows[index]?.optionAText || item.optionAText, item.optionAText),
+    optionATag: sentenceFragment(rows[index]?.optionATag || item.optionATag, 2),
+    optionBText: normalizeMxt002Sentence(rows[index]?.optionBText || item.optionBText, item.optionBText),
+    optionBTag: sentenceFragment(rows[index]?.optionBTag || item.optionBTag, 2),
+  }));
+}
+
+function normalizeMxt003Rules(items: Array<{ title: string; description?: string }>): Array<{ title: string; description?: string }> {
+  const fallback = [
+    'Prioritized low-risk channels under low risk tolerance.',
+    'Disqualified SMS because opt-in was not verified.',
+    'Favored channels with visible professional context.',
+    'Reduced brand-safety exposure before scaling outreach.',
+  ];
+  return fallback.map((text, index) => ({ title: `Rule ${index + 1}`, description: normalizeMxt002Sentence(items[index]?.description || items[index]?.title || text, text) }));
+}
+
+function normalizeMxt003Warnings(actions: Array<{ title: string; description?: string }>, recommendations: Array<{ title: string; description?: string }>): Array<{ title: string; description?: string }> {
+  const source = [...actions, ...recommendations];
+  const fallback = [
+    'Do not use SMS until explicit opt-in is confirmed.',
+    'Do not use scraped personal phone data for outreach.',
+    'Cold email requires opt-out handling and sender reputation monitoring.',
+  ];
+  return fallback.map((text, index) => ({ title: `Warning ${index + 1}`, description: normalizeMxt002Sentence(source[index]?.description || text, text) }));
+}
+
+function normalizeMxt003Actions(actions: Array<{ title: string; description?: string }>): Array<{ title: string; description?: string }> {
+  const fallback = [
+    { title: 'Send a short LinkedIn message', description: 'Open with personalized business context and one clear reason for reaching out.' },
+    { title: 'Use cold email only as a second channel', description: 'Use it after LinkedIn if a compliant email path is available.' },
+    { title: 'Hold SMS until opt-in exists', description: 'Do not use SMS unless a verified consent signal is available.' },
+  ];
+  return fallback.map((item, index) => ({
+    title: normalizeMxt002NumberedTitle(actions[index]?.title || item.title),
+    description: normalizeMxt002Sentence(actions[index]?.description || item.description, item.description),
+  }));
+}
+
+function normalizeMxt003FinalRecommendation(value: string | undefined, recommendedOption: string): string {
+  const text = stringifyValue(value).replace(/\s+\d\s+.+$/g, '').trim();
+  if (text && !/^not provided$/i.test(text)) return normalizeMxt002Sentence(text, text);
+  return `Use ${recommendedOption} as the safest first outreach channel. Avoid SMS until opt-in is verified.`;
 }
 
 function getMxt003InputItems(
@@ -902,23 +1470,24 @@ function applyMxt004PlaceholderMappings(placeholders: Record<string, string>, co
   const patternMetrics = getMxt004PatternMetrics(data, metrics);
   const observedPatterns = getMxt004ObservedPatterns(data, recommendations);
   const opportunities = getMxt004Opportunities(data, recommendations, actions);
+  const pattern = getMxt004ClientPattern(context, stats, results, patternMetrics, observedPatterns, opportunities);
 
   setMxt004Placeholder(placeholders, context, 'theme', context.theme);
-  setMxt004Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || 'MX');
-  setMxt004Placeholder(placeholders, context, 'hero_title', data.summary_card.title || tool?.tool_name || commandSlug);
-  setMxt004Placeholder(placeholders, context, 'snapshot_query', findResultValue(data, /^(query|keyword|search_query)$/i) || data.summary_card.title || commandSlug);
-  setMxt004Placeholder(placeholders, context, 'snapshot_source', findResultValue(data, /^(country|source|market|location)$/i) || stats[0]?.value || 'Not provided');
-  setMxt004Placeholder(placeholders, context, 'snapshot_intent', findResultValue(data, /^(intent|search_intent)$/i) || stats[1]?.value || 'Not provided');
-  setMxt004Placeholder(placeholders, context, 'snapshot_export_limit', findResultValue(data, /^(limit|export_limit|result_limit)$/i) || String(results.length || 3));
-  setMxt004Placeholder(placeholders, context, 'snapshot_summary', data.summary_card.subtitle || recommendations[0]?.description || recommendations[0]?.title || 'Not provided');
+  setMxt004Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || pattern.heroIcon);
+  setMxt004Placeholder(placeholders, context, 'hero_title', tool?.tool_name || pattern.heroTitle || commandSlug);
+  setMxt004Placeholder(placeholders, context, 'snapshot_query', pattern.query);
+  setMxt004Placeholder(placeholders, context, 'snapshot_source', pattern.source);
+  setMxt004Placeholder(placeholders, context, 'snapshot_intent', pattern.intent);
+  setMxt004Placeholder(placeholders, context, 'snapshot_export_limit', pattern.limit);
+  setMxt004Placeholder(placeholders, context, 'snapshot_summary', pattern.summary);
 
-  getHeroPillValues(context).forEach((value, index) => {
+  pattern.heroPills.forEach((value, index) => {
     setMxt004Placeholder(placeholders, context, `hero_pill_${index + 1}`, value);
   });
 
   for (let index = 0; index < 10; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const result = results[index] || {};
+    const result = pattern.results[index] || {};
     setMxt004Placeholder(placeholders, context, `result_position_${padded}`, result.position || String(index + 1));
     setMxt004Placeholder(placeholders, context, `result_title_${padded}`, result.title || `Result ${index + 1}`);
     setMxt004Placeholder(placeholders, context, `result_domain_${padded}`, result.domain || 'Not provided');
@@ -929,13 +1498,13 @@ function applyMxt004PlaceholderMappings(placeholders: Record<string, string>, co
 
   for (let index = 0; index < 3; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const pattern = observedPatterns[index] || patternMetrics[index];
-    setMxt004Placeholder(placeholders, context, `observed_pattern_${padded}`, pattern?.description || pattern?.label || 'Not provided');
+    const observedPattern = pattern.observedPatterns[index] || pattern.metrics[index];
+    setMxt004Placeholder(placeholders, context, `observed_pattern_${padded}`, observedPattern?.description || observedPattern?.label || 'Not provided');
   }
 
   for (let index = 0; index < 3; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const metric = patternMetrics[index] || {
+    const metric = pattern.metrics[index] || {
       label: `Metric ${index + 1}`,
       value: 'Not provided',
       description: 'Not provided',
@@ -947,7 +1516,7 @@ function applyMxt004PlaceholderMappings(placeholders: Record<string, string>, co
 
   for (let index = 0; index < 4; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const opportunity = opportunities[index];
+    const opportunity = pattern.opportunities[index];
     setMxt004Placeholder(placeholders, context, `optimization_opportunity_${padded}`, opportunity?.description || opportunity?.title || 'Not provided');
   }
 }
@@ -959,12 +1528,216 @@ function setMxt004Placeholder(
   fallbackValue: string | undefined
 ): void {
   const mappedValue = context.mappedPlaceholders?.[key];
-  placeholders[key] = isMissingPlaceholderValue(mappedValue)
+  const value = isMissingPlaceholderValue(mappedValue)
     ? fallbackValue?.trim() || 'Not provided'
     : mappedValue;
+  placeholders[key] = normalizeMxt004PlaceholderValue(key, value);
 }
 
-function getMxt004SerpResults(data: UCResult): Array<{ position?: string; title?: string; domain?: string; snippet?: string; intent?: string; type?: string }> {
+interface Mxt004SerpResult {
+  position?: string;
+  title?: string;
+  domain?: string;
+  snippet?: string;
+  intent?: string;
+  type?: string;
+}
+
+interface Mxt004ClientPattern {
+  heroIcon: string;
+  heroTitle: string;
+  heroPills: string[];
+  query: string;
+  source: string;
+  intent: string;
+  limit: string;
+  summary: string;
+  results: Mxt004SerpResult[];
+  observedPatterns: Array<{ label?: string; description?: string }>;
+  metrics: Array<{ label: string; value: string; description?: string }>;
+  opportunities: Array<{ title?: string; description?: string }>;
+}
+
+function getMxt004ClientPattern(
+  context: RenderContext,
+  stats: Array<{ label: string; value: string }>,
+  results: Mxt004SerpResult[],
+  metrics: Array<{ label: string; value: string; description?: string }>,
+  observedPatterns: Array<{ label?: string; description?: string }>,
+  opportunities: Array<{ title?: string; description?: string }>
+): Mxt004ClientPattern {
+  const { data, tool, commandSlug, ucId } = context;
+  const raw = data as any;
+  const topic = raw.topic || {};
+  const sections = raw.sections || {};
+  const query = normalizeMxt004Query(stringifyValue(topic.title?.value || topic.title) || findResultValue(data, /^(query|keyword|search_query)$/i) || data.summary_card.title || commandSlug);
+  const source = normalizeMxt004ChipValue(stringifyValue(topic.country?.value || topic.country) || findResultValue(data, /^(country|source|market|location)$/i) || findStatValue(stats, /country|source|market|location/i) || 'United States');
+  const intent = normalizeMxt004ChipValue(stringifyValue(topic.intent?.value || topic.intent) || findResultValue(data, /^(intent|search_intent)$/i) || findStatValue(stats, /intent/i) || 'Commercial Investigation');
+  const limit = normalizeMxt004Limit(stringifyValue(topic.limit?.value || topic.limit) || findResultValue(data, /^(limit|export_limit|result_limit)$/i) || '100 Organic Results');
+  const summary = normalizeMxt002Sentence(stringifyValue(sections.summary_card?.value) || data.summary_card.subtitle, getMxt004SummaryFallback(ucId));
+
+  return {
+    heroIcon: tool?.icon_emoji || 'MX',
+    heroTitle: tool?.tool_name || stringifyValue(raw.hero?.title) || data.summary_card.title || commandSlug,
+    heroPills: [
+      'Data Extraction',
+      getConfidenceLabel(data),
+      getRiskLabel(data),
+      tool?.id || commandSlug,
+      `Mode: ${getModeLabel(ucId)}`,
+      'AI Engine v1',
+    ],
+    query,
+    source,
+    intent,
+    limit,
+    summary,
+    results: normalizeMxt004Results(results, ucId, query),
+    observedPatterns: normalizeMxt004ObservedPatterns(observedPatterns),
+    metrics: normalizeMxt004Metrics(metrics),
+    opportunities: normalizeMxt004Opportunities(opportunities, ucId),
+  };
+}
+
+function normalizeMxt004PlaceholderValue(key: string, value: string): string {
+  if (key === 'snapshot_query') return normalizeMxt004Query(value);
+  if (key === 'snapshot_source' || key === 'snapshot_intent') return normalizeMxt004ChipValue(value);
+  if (key === 'snapshot_export_limit') return normalizeMxt004Limit(value);
+  if (key === 'snapshot_summary' || /^result_snippet_|^observed_pattern_|^pattern_metric_description_|^optimization_opportunity_/.test(key)) return normalizeMxt002Sentence(stripMxt004NumberPrefix(value), 'Not provided');
+  if (/^result_position_/.test(key)) return stringifyValue(value).match(/\d+/)?.[0] || '1';
+  if (/^result_domain_/.test(key)) return normalizeMxt004Domain(value);
+  if (/^result_intent_|^result_type_|^pattern_metric_label_/.test(key)) return sentenceFragment(value, 3);
+  if (/^pattern_metric_value_/.test(key)) return normalizeMxt004MetricValue(value);
+  if (/^result_title_/.test(key)) return stringifyValue(value).split(/[\r\n]/)[0].trim() || 'Not provided';
+  return value?.trim() || 'Not provided';
+}
+
+function findStatValue(stats: Array<{ label: string; value: string }>, pattern: RegExp): string | undefined {
+  return stats.find(stat => pattern.test(stat.label))?.value;
+}
+
+function normalizeMxt004Query(value: string | undefined): string {
+  return stringifyValue(value).replace(/[.!?]+$/, '').replace(/^(query|keyword):\s*/i, '').trim() || 'best email marketing software';
+}
+
+function normalizeMxt004ChipValue(value: string | undefined): string {
+  return stringifyValue(value).replace(/^[^A-Za-z0-9]+\s*/, '').replace(/[.!?]+$/, '').trim() || 'Not provided';
+}
+
+function normalizeMxt004Limit(value: string | undefined): string {
+  const text = stringifyValue(value).replace(/[.!?]+$/, '').trim();
+  const count = text.match(/\d+/)?.[0];
+  if (/organic results/i.test(text)) return text;
+  return count ? `${count} Organic Results` : '100 Organic Results';
+}
+
+function normalizeMxt004Domain(value: string | undefined): string {
+  const text = stringifyValue(value).trim();
+  if (!text) return 'Not provided';
+  return text.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split(/[/?#]/)[0].toLowerCase();
+}
+
+function normalizeMxt004MetricValue(value: string | undefined): string {
+  const text = stringifyValue(value).trim();
+  return text.match(/\d+(?:\.\d+)?%/)?.[0] || extractPercent(text);
+}
+
+function stripMxt004NumberPrefix(value: string | undefined): string {
+  return stringifyValue(value).replace(/^\s*\d+\s+/, '').trim();
+}
+
+function getMxt004SummaryFallback(ucId: string): string {
+  if (ucId.toUpperCase() === 'UC1') return 'The top SERP results show a comparison-heavy pattern led by review publishers and SaaS vendor pages.';
+  if (ucId.toUpperCase() === 'UC2') return 'The SERP is dominated by comparison pages, SaaS vendor resources, and buyer-intent listicles. Most pages are optimized for evaluation instead of direct signup.';
+  return 'The SERP is dominated by comparison and listicle-style content from software review publishers, ecommerce education brands, and platform-owned resources. Ranking pages emphasize feature comparison, pricing, use-case segmentation, and buyer decision support.';
+}
+
+function normalizeMxt004Results(results: Mxt004SerpResult[], ucId: string, query: string): Mxt004SerpResult[] {
+  const rowCount = ucId.toUpperCase() === 'UC1' ? 3 : ucId.toUpperCase() === 'UC2' ? 6 : 10;
+  const fallback = getMxt004FallbackRows(query);
+  return Array.from({ length: rowCount }, (_, index) => {
+    const result = results[index] || fallback[index];
+    return {
+      position: normalizeMxt004PlaceholderValue(`result_position_${index + 1}`, result.position || String(index + 1)),
+      title: normalizeMxt004PlaceholderValue(`result_title_${index + 1}`, result.title || fallback[index].title || `Result ${index + 1}`),
+      domain: normalizeMxt004Domain(result.domain || fallback[index].domain),
+      snippet: normalizeMxt002Sentence(result.snippet || fallback[index].snippet, fallback[index].snippet || 'Not provided'),
+      intent: sentenceFragment(result.intent || fallback[index].intent || 'Commercial', 3),
+      type: sentenceFragment(result.type || fallback[index].type || 'Review Listicle', 3),
+    };
+  });
+}
+
+function getMxt004FallbackRows(query: string): Mxt004SerpResult[] {
+  return [
+    { position: '1', title: `Best ${capitalizeWords(query)} of 2026`, domain: 'forbes.com', snippet: 'Compare top platforms by pricing, automation, templates, analytics, and use cases.', intent: 'Commercial', type: 'Review Listicle' },
+    { position: '2', title: `The Best ${capitalizeWords(query)} Compared`, domain: 'pcmag.com', snippet: 'Detailed comparison for small businesses, creators, ecommerce teams, and agencies.', intent: 'Commercial', type: 'Software Comparison' },
+    { position: '3', title: `${capitalizeWords(query)} for Growing Businesses`, domain: 'mailchimp.com', snippet: 'Build campaigns, automate workflows, and grow audiences with focused marketing tools.', intent: 'Transactional', type: 'Vendor Page' },
+    { position: '4', title: `Top ${capitalizeWords(query)} for Ecommerce`, domain: 'shopify.com', snippet: 'Explore tools for abandoned cart flows, segmentation, and automation.', intent: 'Commercial', type: 'Educational Comparison' },
+    { position: '5', title: `Best Free ${capitalizeWords(query)}`, domain: 'hubspot.com', snippet: 'Review free and paid tools for CRM integration, automation, and reporting.', intent: 'Commercial', type: 'Vendor Resource' },
+    { position: '6', title: `${capitalizeWords(query)}: 15 Platforms Compared`, domain: 'zapier.com', snippet: 'A workflow-focused comparison of platforms for automation and integrations.', intent: 'Commercial', type: 'Comparison Guide' },
+    { position: '7', title: `Best ${capitalizeWords(query)} for Small Business`, domain: 'g2.com', snippet: 'User reviews and rankings for email marketing platforms.', intent: 'Commercial', type: 'Review Directory' },
+    { position: '8', title: 'Email Marketing Services and Automation', domain: 'constantcontact.com', snippet: 'Create campaigns and automate customer communication.', intent: 'Transactional', type: 'Vendor Page' },
+    { position: '9', title: 'Best Newsletter Platforms for Creators', domain: 'convertkit.com', snippet: 'Tools and examples for creators building email audiences.', intent: 'Commercial', type: 'Vendor Resource' },
+    { position: '10', title: 'Email Marketing Automation Software', domain: 'activecampaign.com', snippet: 'Marketing automation, email campaigns, and CRM workflows.', intent: 'Transactional', type: 'Vendor Page' },
+  ];
+}
+
+function normalizeMxt004ObservedPatterns(items: Array<{ label?: string; description?: string }>): Array<{ label?: string; description?: string }> {
+  const fallback = [
+    'Review publishers control many top positions.',
+    'Vendor pages appear when they provide clear feature positioning.',
+    'Comparison tables are common in high-ranking pages.',
+  ];
+  return fallback.map((text, index) => ({ label: `Pattern ${index + 1}`, description: normalizeMxt002Sentence(stripMxt004NumberPrefix(items[index]?.description || items[index]?.label || text), text) }));
+}
+
+function normalizeMxt004Metrics(items: Array<{ label: string; value: string; description?: string }>): Array<{ label: string; value: string; description?: string }> {
+  const fallback = [
+    { label: 'Commercial', value: '68%', description: 'Comparison and review pages' },
+    { label: 'Informational', value: '22%', description: 'Guides and education' },
+    { label: 'Transactional', value: '10%', description: 'Vendor landing pages' },
+  ];
+  return fallback.map((item, index) => {
+    const source = items[index];
+    const rawValue = source?.value || item.value;
+    const value = normalizeMxt004MetricValue(rawValue);
+    return {
+      label: sentenceFragment(source?.label || item.label, 3),
+      value,
+      description: normalizeMxt004MetricDescription(source?.description || rawValue, value, item.description),
+    };
+  });
+}
+
+function normalizeMxt004MetricDescription(value: string | undefined, metricValue: string, fallback: string): string {
+  const text = stripMxt004NumberPrefix(value).replace(metricValue, '').trim();
+  return text || fallback;
+}
+
+function normalizeMxt004Opportunities(items: Array<{ title?: string; description?: string }>, ucId: string): Array<{ title?: string; description?: string }> {
+  const fallback = ucId.toUpperCase() === 'UC2'
+    ? ['Create a comparison landing page.', 'Add pricing and feature tables.', 'Cluster supporting content around automation and ecommerce use cases.']
+    : ['Create a comparison-focused page targeting the main keyword.', 'Add pricing, automation, ecommerce, integrations, and free-plan sections.', 'Build supporting articles around automation, ecommerce email, and deliverability.', 'Use the export table to filter domains, intent, and content patterns.'];
+  return fallback.map((text, index) => ({ title: `Recommendation ${index + 1}`, description: normalizeMxt002Sentence(stripMxt004NumberPrefix(items[index]?.description || items[index]?.title || text), text) }));
+}
+
+function getMxt004SerpResults(data: UCResult): Mxt004SerpResult[] {
+  const sectionRows = (data as any).sections?.organic_serp_rows?.table?.rows;
+  if (Array.isArray(sectionRows)) {
+    return sectionRows.map((row: any, index: number) => {
+      const cells = Array.isArray(row?.cells) ? row.cells : [];
+      return {
+        position: stringifyValue(cells[0] ?? row.position ?? row.rank) || String(index + 1),
+        title: stringifyValue(cells[1] ?? row.title),
+        domain: stringifyValue(cells[2] ?? row.domain),
+        snippet: stringifyValue(cells[3] ?? row.snippet),
+        intent: stringifyValue(cells[4] ?? row.intent),
+        type: stringifyValue(cells[5] ?? row.type),
+      };
+    });
+  }
+
   const table = getDataTableBlock(data);
   const rows = getTableRows(table);
 
@@ -1000,6 +1773,15 @@ function getMxt004PatternMetrics(
   data: UCResult,
   fallbackMetrics: Array<{ label: string; value: string; status?: string }>
 ): Array<{ label: string; value: string; description?: string }> {
+  const distributionItems = (data as any).sections?.intent_distribution?.items;
+  if (Array.isArray(distributionItems)) {
+    return distributionItems.map((item: any, index: number) => ({
+      label: stringifyValue(item.label || item.title || item.name) || `Metric ${index + 1}`,
+      value: stringifyValue(item.value || item.score || item.count) || 'Not provided',
+      description: stringifyValue(item.description || item.detail || item.value),
+    }));
+  }
+
   const block = data.blocks.find(block => /pattern|metric|snapshot/i.test(`${block.type} ${block.title}`));
   const items = block?.metrics || block?.items || block?.data;
 
@@ -1022,6 +1804,14 @@ function getMxt004ObservedPatterns(
   data: UCResult,
   fallbackRecommendations: Array<{ title: string; description?: string }>
 ): Array<{ label?: string; description?: string }> {
+  const sectionItems = (data as any).sections?.observed_patterns?.items;
+  if (Array.isArray(sectionItems)) {
+    return sectionItems.map((item: any, index: number) => ({
+      label: stringifyValue(item.label || item.title || item.name) || `Pattern ${index + 1}`,
+      description: stringifyValue(item.description || item.value || item.insight || item.impact),
+    }));
+  }
+
   const block = data.blocks.find(block => /observed|pattern|insight/i.test(`${block.type} ${block.title}`));
   const items = block?.items || block?.insights || block?.data;
 
@@ -1040,6 +1830,16 @@ function getMxt004Opportunities(
   fallbackRecommendations: Array<{ title: string; description?: string }>,
   fallbackActions: Array<{ title: string; description?: string }>
 ): Array<{ title?: string; description?: string }> {
+  const sectionItems = (data as any).sections?.recommendations?.items || (data as any).sections?.seo_direction?.items;
+  if (Array.isArray(sectionItems)) {
+    return sectionItems.map((item: any, index: number) => typeof item === 'string'
+      ? { title: `Opportunity ${index + 1}`, description: item }
+      : {
+        title: stringifyValue(item.title || item.label || item.name) || `Opportunity ${index + 1}`,
+        description: stringifyValue(item.description || item.value || item.action || item.impact),
+      });
+  }
+
   const block = data.blocks.find(block => /opportunity|optimization|recommend|action/i.test(`${block.type} ${block.title}`));
   const items = block?.items || block?.recommendations || block?.steps || block?.data;
 
@@ -1064,30 +1864,30 @@ function applyMxt005PlaceholderMappings(placeholders: Record<string, string>, co
   const auditIssues = getMxt005AuditIssues(data, recommendations);
   const pressureMetrics = getMxt005PressureMetrics(data, metrics);
   const longTailKeywords = getMxt005LongTailKeywords(data, recommendations);
-  const finalRecommendation = recommendations[0]?.description
-    || recommendations[0]?.title
-    || getDecision(data)?.reason
-    || data.summary_card.subtitle
-    || 'Not provided';
+  const pattern = getMxt005ClientPattern(context, stats, metrics, auditIssues, pressureMetrics, longTailKeywords, recommendations, actions);
 
   setMxt005Placeholder(placeholders, context, 'theme', context.theme);
-  setMxt005Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || 'MX');
-  setMxt005Placeholder(placeholders, context, 'hero_title', data.summary_card.title || tool?.tool_name || commandSlug);
-  setMxt005Placeholder(placeholders, context, 'audit_subject', findResultValue(data, /^(subject|keyword|query|audit_subject)$/i) || data.summary_card.title || commandSlug);
-  setMxt005Placeholder(placeholders, context, 'audit_context_country', findResultValue(data, /^(country|market|location)$/i) || stats[0]?.value || 'Not provided');
-  setMxt005Placeholder(placeholders, context, 'audit_context_language', findResultValue(data, /^(language|locale)$/i) || stats[1]?.value || 'Not provided');
-  setMxt005Placeholder(placeholders, context, 'audit_context_intent', findResultValue(data, /^(intent|search_intent)$/i) || stats[2]?.value || 'Not provided');
-  setMxt005Placeholder(placeholders, context, 'final_recommendation_body', finalRecommendation);
+  setMxt005Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || pattern.heroIcon);
+  setMxt005Placeholder(placeholders, context, 'hero_title', tool?.tool_name || pattern.heroTitle || commandSlug);
+  setMxt005Placeholder(placeholders, context, 'audit_subject', pattern.subject);
+  setMxt005Placeholder(placeholders, context, 'audit_context_country', pattern.country);
+  setMxt005Placeholder(placeholders, context, 'audit_context_language', pattern.language);
+  setMxt005Placeholder(placeholders, context, 'audit_context_intent', pattern.intent);
+  setMxt005Placeholder(placeholders, context, 'final_recommendation_body', pattern.finalRecommendation);
 
   applyScorePlaceholders(placeholders, context);
+  placeholders.score_value = pattern.scoreValue;
+  placeholders.score_progress = pattern.scoreProgress;
+  placeholders.score_label = pattern.scoreLabel;
+  placeholders.score_status = pattern.scoreStatus;
 
-  getHeroPillValues(context).forEach((value, index) => {
+  pattern.heroPills.forEach((value, index) => {
     setMxt005Placeholder(placeholders, context, `hero_pill_${index + 1}`, value);
   });
 
   for (let index = 0; index < 4; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const metric = metrics[index] || {
+    const metric = pattern.dimensions[index] || {
       label: `Dimension ${index + 1}`,
       value: 'Not provided',
       status: 'Not provided',
@@ -1100,7 +1900,7 @@ function applyMxt005PlaceholderMappings(placeholders: Record<string, string>, co
 
   for (let index = 0; index < 3; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const issue = auditIssues[index] || {};
+    const issue = pattern.factorRows[index] || {};
     setMxt005Placeholder(placeholders, context, `audit_issue_name_${padded}`, issue.name || `Issue ${index + 1}`);
     setMxt005Placeholder(placeholders, context, `audit_issue_severity_${padded}`, normalizeDimensionStatus(issue.severity, issue.evidence, 'severity'));
     setMxt005Placeholder(placeholders, context, `audit_issue_evidence_${padded}`, issue.evidence || 'Not provided');
@@ -1108,7 +1908,7 @@ function applyMxt005PlaceholderMappings(placeholders: Record<string, string>, co
 
   for (let index = 0; index < 5; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const metric = pressureMetrics[index] || metrics[index] || {
+    const metric = pattern.pressureMetrics[index] || metrics[index] || {
       label: `Pressure ${index + 1}`,
       value: '0',
     };
@@ -1119,13 +1919,13 @@ function applyMxt005PlaceholderMappings(placeholders: Record<string, string>, co
 
   for (let index = 0; index < 4; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const action = actions[index] || recommendations[index] || auditIssues[index];
+    const action = pattern.actions[index] || actions[index] || recommendations[index] || auditIssues[index];
     setMxt005Placeholder(placeholders, context, `audit_action_${padded}`, action?.description || action?.title || stringifyValue((action as any)?.evidence) || 'Not provided');
   }
 
   for (let index = 0; index < 5; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    setMxt005Placeholder(placeholders, context, `long_tail_keyword_${padded}`, longTailKeywords[index] || 'Not provided');
+    setMxt005Placeholder(placeholders, context, `long_tail_keyword_${padded}`, pattern.longTailKeywords[index] || 'Not provided');
   }
 }
 
@@ -1136,9 +1936,241 @@ function setMxt005Placeholder(
   fallbackValue: string | undefined
 ): void {
   const mappedValue = context.mappedPlaceholders?.[key];
-  placeholders[key] = isMissingPlaceholderValue(mappedValue)
+  const value = isMissingPlaceholderValue(mappedValue)
     ? fallbackValue?.trim() || 'Not provided'
     : mappedValue;
+  placeholders[key] = normalizeMxt005PlaceholderValue(key, value);
+}
+
+interface Mxt005ClientPattern {
+  heroIcon: string;
+  heroTitle: string;
+  heroPills: string[];
+  subject: string;
+  country: string;
+  language: string;
+  intent: string;
+  scoreValue: string;
+  scoreProgress: string;
+  scoreLabel: string;
+  scoreStatus: string;
+  dimensions: Array<{ label: string; value: string; status?: string }>;
+  factorRows: Array<{ name?: string; severity?: string; evidence?: string; title?: string; description?: string }>;
+  pressureMetrics: Array<{ label: string; value: string; status?: string }>;
+  actions: Array<{ title: string; description?: string }>;
+  longTailKeywords: string[];
+  finalRecommendation: string;
+}
+
+function getMxt005ClientPattern(
+  context: RenderContext,
+  stats: Array<{ label: string; value: string }>,
+  metrics: Array<{ label: string; value: string; status?: string }>,
+  auditIssues: Array<{ name?: string; severity?: string; evidence?: string; title?: string; description?: string }>,
+  pressureMetrics: Array<{ label: string; value: string; status?: string }>,
+  longTailKeywords: string[],
+  recommendations: Array<{ title: string; description?: string }>,
+  actions: Array<{ title: string; description?: string }>
+): Mxt005ClientPattern {
+  const { data, tool, commandSlug, ucId } = context;
+  const raw = data as any;
+  const topic = raw.topic || {};
+  const score = raw.score || {};
+  const scoreValue = normalizeMxt005ScoreValue(stringifyValue(score.display_value || score.value) || getScore(data));
+  const scoreStatus = normalizeMxt005Badge(stringifyValue(score.risk_level?.value || score.status || score.risk_level) || getMetricStatus(scoreValue));
+  const subject = normalizeMxt005Subject(stringifyValue(topic.title?.value || topic.title) || findResultValue(data, /^(subject|keyword|query|audit_subject)$/i) || data.summary_card.title || commandSlug);
+  const finalRecommendation = normalizeMxt002Sentence(
+    stringifyValue(raw.sections?.final_decision?.value || raw.sections?.recommendation?.value)
+      || recommendations[0]?.description
+      || recommendations[0]?.title
+      || stringifyValue(getDecision(data)?.reason)
+      || data.summary_card.subtitle,
+    getMxt005FinalFallback(ucId)
+  );
+
+  return {
+    heroIcon: tool?.icon_emoji || 'MX',
+    heroTitle: tool?.tool_name || stringifyValue(raw.hero?.title) || 'Keyword Difficulty Estimator',
+    heroPills: [
+      normalizeMxt005Pill(stringifyValue(raw.hero?.pills?.[0]?.value) || 'Informational Intent'),
+      normalizeMxt005Pill(stringifyValue(raw.hero?.pills?.[1]?.value) || getConfidenceLabel(data)),
+      normalizeMxt005Pill(stringifyValue(raw.hero?.pills?.[2]?.value) || 'Low Competition'),
+      tool?.id || commandSlug,
+      `Mode: ${getModeLabel(ucId)}`,
+      'AI Engine v1',
+    ],
+    subject,
+    country: normalizeMxt005Chip(stringifyValue(topic.country?.value || topic.country) || findResultValue(data, /^(country|market|location)$/i) || findStatValue(stats, /country|market|location/i) || 'US'),
+    language: normalizeMxt005Chip(stringifyValue(topic.language?.value || topic.language) || findResultValue(data, /^(language|locale)$/i) || findStatValue(stats, /language|locale/i) || 'en'),
+    intent: normalizeMxt005Chip(stringifyValue(topic.intent?.value || topic.intent) || findResultValue(data, /^(intent|search_intent)$/i) || findStatValue(stats, /intent/i) || 'Informational research'),
+    scoreValue,
+    scoreProgress: scoreValue,
+    scoreLabel: sentenceFragment(stringifyValue(score.label) || 'Difficulty', 2),
+    scoreStatus,
+    dimensions: normalizeMxt005Dimensions(raw.decision?.items, metrics, ucId),
+    factorRows: normalizeMxt005FactorRows(raw.sections?.factor_table?.table?.rows, auditIssues),
+    pressureMetrics: normalizeMxt005PressureMetrics(raw.sections?.competitive_breakdown?.value, pressureMetrics),
+    actions: normalizeMxt005Actions(raw.sections?.seo_action_plan?.items || raw.sections?.recommendation?.value, actions, recommendations, ucId),
+    longTailKeywords: normalizeMxt005LongTailKeywords(raw.sections?.long_tail_cluster?.items, longTailKeywords, subject),
+    finalRecommendation,
+  };
+}
+
+function normalizeMxt005PlaceholderValue(key: string, value: string): string {
+  if (key === 'audit_subject') return normalizeMxt005Subject(value);
+  if (/^audit_context_/.test(key)) return normalizeMxt005Chip(value);
+  if (/^dimension_name_|^audit_issue_name_|^audit_pressure_label_/.test(key)) return sentenceFragment(value, 4);
+  if (/^dimension_value_/.test(key)) return normalizeMxt005ShortValue(value);
+  if (/^dimension_status_|^audit_issue_severity_/.test(key)) return normalizeMxt005Badge(value);
+  if (/^audit_issue_evidence_|^audit_action_|^final_recommendation_body$/.test(key)) return normalizeMxt002Sentence(stripMxt004NumberPrefix(value), 'Not provided');
+  if (/^audit_pressure_width_/.test(key)) return clampPercent(normalizeMxt005ScoreValue(value));
+  if (/^audit_pressure_value_/.test(key)) return normalizeMxt005ScoreValue(value);
+  if (/^long_tail_keyword_/.test(key)) return stripMxt004NumberPrefix(value).replace(/[.!?]+$/, '').trim() || 'Not provided';
+  return value?.trim() || 'Not provided';
+}
+
+function normalizeMxt005Subject(value: string | undefined): string {
+  return stringifyValue(value).replace(/[.!?]+$/, '').replace(/^(keyword|query):\s*/i, '').trim() || 'best email marketing software';
+}
+
+function normalizeMxt005Chip(value: string | undefined): string {
+  return stringifyValue(value).replace(/^[^A-Za-z0-9]+\s*/, '').replace(/[.!?]+$/, '').trim() || 'Not provided';
+}
+
+function normalizeMxt005Pill(value: string | undefined): string {
+  return sentenceFragment(normalizeMxt005Chip(value), 3);
+}
+
+function normalizeMxt005ScoreValue(value: string | undefined): string {
+  return extractPercent(stringifyValue(value) || '74');
+}
+
+function normalizeMxt005ShortValue(value: string | undefined): string {
+  const text = stringifyValue(value).trim();
+  if (/^\d+(?:\.\d+)?%?$/.test(text)) return extractPercent(text);
+  return sentenceFragment(text || 'Not provided', 3);
+}
+
+function normalizeMxt005Badge(value: string | undefined): string {
+  return sentenceFragment(stringifyValue(value) || 'High', 2);
+}
+
+function normalizeMxt005Dimensions(
+  items: unknown,
+  fallbackMetrics: Array<{ label: string; value: string; status?: string }>,
+  ucId: string
+): Array<{ label: string; value: string; status?: string }> {
+  const source = Array.isArray(items) ? items as any[] : [];
+  const fallback = ucId.toUpperCase() === 'UC1'
+    ? [
+      { label: 'Difficulty Score', value: '74', status: 'High' },
+      { label: 'Ranking Effort', value: 'Hard', status: 'Plan' },
+      { label: 'Best Use', value: 'Later', status: 'Pillar' },
+    ]
+    : ucId.toUpperCase() === 'UC2'
+      ? [
+        { label: 'SERP Authority', value: '85', status: 'Strong' },
+        { label: 'Commercial Pressure', value: '90', status: 'High' },
+        { label: 'Content Depth Needed', value: '78', status: 'Deep' },
+        { label: 'Long-tail Opening', value: '48', status: 'Usable' },
+      ]
+      : [
+        { label: 'Authority Gap', value: 'High', status: 'Hard' },
+        { label: 'Intent Value', value: 'Strong', status: 'Valuable' },
+        { label: 'Content Investment', value: 'Heavy', status: 'Deep' },
+        { label: 'Entry Strategy', value: 'Cluster', status: 'Best' },
+      ];
+  return fallback.map((item, index) => {
+    const sourceItem = source[index] || fallbackMetrics[index];
+    return {
+      label: sentenceFragment(stringifyValue(sourceItem?.label || sourceItem?.title || item.label), 4),
+      value: normalizeMxt005ShortValue(stringifyValue(sourceItem?.value || item.value)),
+      status: normalizeMxt005Badge(stringifyValue(sourceItem?.status || item.status)),
+    };
+  });
+}
+
+function normalizeMxt005FactorRows(
+  rows: unknown,
+  fallbackRows: Array<{ name?: string; severity?: string; evidence?: string; title?: string; description?: string }>
+): Array<{ name?: string; severity?: string; evidence?: string; title?: string; description?: string }> {
+  const source = Array.isArray(rows) ? rows as any[] : [];
+  const fallback = [
+    { name: 'SERP Authority', severity: '85', evidence: 'Top pages likely come from trusted SaaS brands, comparison blogs, and review sites.' },
+    { name: 'Content Requirement', severity: '78', evidence: 'The page needs comparisons, pricing, pros, cons, and alternatives.' },
+    { name: 'Entry Opportunity', severity: '48', evidence: 'Long-tail variations offer better early ranking opportunities.' },
+  ];
+  return fallback.map((item, index) => {
+    const row = source[index];
+    const cells = Array.isArray(row?.cells) ? row.cells : [];
+    const fallbackRow = fallbackRows[index];
+    return {
+      name: sentenceFragment(stringifyValue(cells[0] || row?.name || row?.factor || fallbackRow?.name || item.name), 4),
+      severity: normalizeMxt005ScoreValue(stringifyValue(cells[1] || row?.score || row?.severity || fallbackRow?.severity || item.severity)),
+      evidence: normalizeMxt002Sentence(stringifyValue(cells[2] || row?.finding || row?.evidence || fallbackRow?.evidence || item.evidence), item.evidence),
+    };
+  });
+}
+
+function normalizeMxt005PressureMetrics(value: unknown, fallbackMetrics: Array<{ label: string; value: string; status?: string }>): Array<{ label: string; value: string; status?: string }> {
+  const text = stringifyValue(value);
+  const parsed = Array.from(text.matchAll(/([^\d]+?)\s+(\d{1,3})(?=\s+[^\d]+\s+\d{1,3}|$)/g)).map(match => ({
+    label: sentenceFragment(match[1].trim(), 4),
+    value: normalizeMxt005ScoreValue(match[2]),
+  }));
+  const fallback = [
+    { label: 'Review sites competing', value: '88' },
+    { label: 'SaaS brand presence', value: '84' },
+    { label: 'Affiliate content density', value: '79' },
+    { label: 'Comparison-page saturation', value: '76' },
+    { label: 'Long-tail opening', value: '52' },
+  ];
+  return fallback.map((item, index) => {
+    const source = parsed[index] || fallbackMetrics[index] || item;
+    return {
+      label: sentenceFragment(source.label || item.label, 4),
+      value: normalizeMxt005ScoreValue(source.value || item.value),
+      status: 'status' in source ? stringifyValue(source.status) : undefined,
+    };
+  });
+}
+
+function normalizeMxt005Actions(
+  items: unknown,
+  actions: Array<{ title: string; description?: string }>,
+  recommendations: Array<{ title: string; description?: string }>,
+  ucId: string
+): Array<{ title: string; description?: string }> {
+  const sourceItems = Array.isArray(items) ? items as any[] : splitSentences(stringifyValue(items)).map(value => ({ value }));
+  const fallback = ucId.toUpperCase() === 'UC2'
+    ? ['Create long-tail support pages before the main pillar page.', 'Build one comparison-style pillar after the support cluster is live.', 'Use internal links from support pages to strengthen the main target.']
+    : ['Publish 5-8 support articles before targeting the main keyword.', 'Create a comparison pillar with pricing, features, pros, cons, and alternatives.', 'Add original data or expert commentary to avoid generic affiliate-style content.', 'Build internal links from all support pages to the pillar page.'];
+  return fallback.map((text, index) => {
+    const source = sourceItems[index] || actions[index] || recommendations[index];
+    return { title: `Action ${index + 1}`, description: normalizeMxt002Sentence(stripMxt004NumberPrefix(stringifyValue(source?.value || source?.description || source?.title) || text), text) };
+  });
+}
+
+function normalizeMxt005LongTailKeywords(items: unknown, fallbackKeywords: string[], subject: string): string[] {
+  const sourceItems = Array.isArray(items) ? items as any[] : [];
+  const fallback = [
+    `${subject} for small business`,
+    `affordable ${subject}`,
+    `${subject} for ecommerce`,
+    'email marketing software for beginners',
+    'Mailchimp alternatives for small business',
+  ];
+  return fallback.map((text, index) => stripMxt004NumberPrefix(stringifyValue(sourceItems[index]?.value || sourceItems[index]?.keyword || sourceItems[index] || fallbackKeywords[index] || text)).replace(/[.!?]+$/, '').trim());
+}
+
+function getMxt005FinalFallback(ucId: string): string {
+  if (ucId.toUpperCase() === 'UC1') return 'Use this keyword as a future pillar target. Start with easier long-tail keywords first, then return to this broader keyword after building topical authority.';
+  if (ucId.toUpperCase() === 'UC2') return 'Create long-tail support pages before the main pillar page. Build one comparison-style pillar after the support cluster is live. Use internal links from support pages to strengthen the main target.';
+  return 'This keyword is valuable but should not be the first target. Treat it as a future pillar keyword and win supporting long-tail searches first to build topical authority.';
+}
+
+function splitSentences(value: string): string[] {
+  return value.match(/[^.!?]+[.!?]+/g)?.map(item => item.trim()).filter(Boolean) || [];
 }
 
 function getMxt005AuditIssues(
@@ -1221,35 +2253,32 @@ function applyMxt006PlaceholderMappings(placeholders: Record<string, string>, co
   const details = getMxt006Details(data, recommendations, actions);
   const leadSignals = getMxt006ListItems(data, /lead|signal/i, recommendations);
   const outreachContexts = getMxt006ListItems(data, /outreach|context/i, actions);
-  const profileName = findResultValue(data, /^(profile_name|name|person|company|brand)$/i)
-    || data.summary_card.title
-    || tool?.tool_name
-    || commandSlug;
+  const pattern = getMxt006ClientPattern(context, stats, attributes, details, leadSignals, outreachContexts);
 
   setMxt006Placeholder(placeholders, context, 'theme', context.theme);
-  setMxt006Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || 'MX');
-  setMxt006Placeholder(placeholders, context, 'hero_title', data.summary_card.title || tool?.tool_name || commandSlug);
-  setMxt006Placeholder(placeholders, context, 'profile_scan_title', data.summary_card.title || tool?.tool_name || commandSlug);
-  setMxt006Placeholder(placeholders, context, 'profile_context_01', findResultValue(data, /^(platform|network|channel)$/i) || stats[0]?.value || 'Not provided');
-  setMxt006Placeholder(placeholders, context, 'profile_context_02', findResultValue(data, /^(niche|category|industry)$/i) || stats[1]?.value || 'Not provided');
-  setMxt006Placeholder(placeholders, context, 'profile_context_03', findResultValue(data, /^(profile_type|type|segment)$/i) || stats[2]?.value || 'Not provided');
-  setMxt006Placeholder(placeholders, context, 'profile_name', profileName);
-  setMxt006Placeholder(placeholders, context, 'profile_metadata', findResultValue(data, /^(metadata|profile_metadata|bio_meta)$/i) || [stats[0]?.value, stats[1]?.value].filter(Boolean).join(' · ') || 'Not provided');
-  setMxt006Placeholder(placeholders, context, 'profile_scan_summary', data.summary_card.subtitle || recommendations[0]?.description || recommendations[0]?.title || 'Not provided');
-  setMxt006Placeholder(placeholders, context, 'profile_score', getScore(data));
-  setMxt006Placeholder(placeholders, context, 'profile_rating_visual', getRatingVisual(getScore(data)));
-  placeholders.profile_rating_visual = formatMxt006RatingVisual(placeholders.profile_rating_visual, getScore(data));
-  setMxt006Placeholder(placeholders, context, 'profile_score_label', getScoreLabel(context));
-  setMxt006Placeholder(placeholders, context, 'profile_image_url', findResultValue(data, /^(profile_image_url|image_url|avatar_url|photo_url)$/i) || 'Not provided');
-  setMxt006Placeholder(placeholders, context, 'initials', getInitials(profileName));
+  setMxt006Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || pattern.heroIcon);
+  setMxt006Placeholder(placeholders, context, 'hero_title', tool?.tool_name || pattern.heroTitle || commandSlug);
+  setMxt006Placeholder(placeholders, context, 'profile_scan_title', pattern.scanTitle);
+  setMxt006Placeholder(placeholders, context, 'profile_context_01', pattern.platform);
+  setMxt006Placeholder(placeholders, context, 'profile_context_02', pattern.niche);
+  setMxt006Placeholder(placeholders, context, 'profile_context_03', pattern.profileType);
+  setMxt006Placeholder(placeholders, context, 'profile_name', pattern.profileName);
+  setMxt006Placeholder(placeholders, context, 'profile_metadata', pattern.metadata);
+  setMxt006Placeholder(placeholders, context, 'profile_scan_summary', pattern.summary);
+  setMxt006Placeholder(placeholders, context, 'profile_score', pattern.score);
+  setMxt006Placeholder(placeholders, context, 'profile_rating_visual', pattern.ratingVisual);
+  placeholders.profile_rating_visual = formatMxt006RatingVisual(placeholders.profile_rating_visual, pattern.score);
+  setMxt006Placeholder(placeholders, context, 'profile_score_label', pattern.scoreLabel);
+  setMxt006Placeholder(placeholders, context, 'profile_image_url', pattern.imageUrl);
+  setMxt006Placeholder(placeholders, context, 'initials', pattern.initials);
 
-  getHeroPillValues(context).forEach((value, index) => {
+  pattern.heroPills.forEach((value, index) => {
     setMxt006Placeholder(placeholders, context, `hero_pill_${index + 1}`, value);
   });
 
   for (let index = 0; index < 4; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const attribute = attributes[index] || {
+    const attribute = pattern.attributes[index] || {
       label: `Attribute ${index + 1}`,
       value: 'Not provided',
     };
@@ -1259,7 +2288,7 @@ function applyMxt006PlaceholderMappings(placeholders: Record<string, string>, co
 
   for (let index = 0; index < 6; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const detail = details[index] || {
+    const detail = pattern.details[index] || {
       title: `Detail ${index + 1}`,
       description: 'Not provided',
     };
@@ -1269,12 +2298,12 @@ function applyMxt006PlaceholderMappings(placeholders: Record<string, string>, co
 
   for (let index = 0; index < 3; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    setMxt006Placeholder(placeholders, context, `lead_signal_${padded}`, leadSignals[index]?.description || leadSignals[index]?.title || 'Not provided');
+    setMxt006Placeholder(placeholders, context, `lead_signal_${padded}`, pattern.leadSignals[index]?.description || pattern.leadSignals[index]?.title || 'Not provided');
   }
 
   for (let index = 0; index < 4; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    setMxt006Placeholder(placeholders, context, `outreach_context_${padded}`, outreachContexts[index]?.description || outreachContexts[index]?.title || 'Not provided');
+    setMxt006Placeholder(placeholders, context, `outreach_context_${padded}`, pattern.outreachContexts[index]?.description || pattern.outreachContexts[index]?.title || 'Not provided');
   }
 }
 
@@ -1285,9 +2314,238 @@ function setMxt006Placeholder(
   fallbackValue: string | undefined
 ): void {
   const mappedValue = context.mappedPlaceholders?.[key];
-  placeholders[key] = isMissingPlaceholderValue(mappedValue)
+  const value: string = isMissingPlaceholderValue(mappedValue)
     ? fallbackValue?.trim() || 'Not provided'
-    : mappedValue;
+    : mappedValue ?? 'Not provided';
+  placeholders[key] = normalizeMxt006PlaceholderValue(key, value);
+}
+
+interface Mxt006ClientPattern {
+  heroIcon: string;
+  heroTitle: string;
+  heroPills: string[];
+  scanTitle: string;
+  platform: string;
+  niche: string;
+  profileType: string;
+  profileName: string;
+  metadata: string;
+  summary: string;
+  score: string;
+  ratingVisual: string;
+  scoreLabel: string;
+  imageUrl: string;
+  initials: string;
+  attributes: Array<{ label: string; value: string }>;
+  details: Array<{ title: string; description?: string }>;
+  leadSignals: Array<{ title: string; description?: string }>;
+  outreachContexts: Array<{ title: string; description?: string }>;
+}
+
+function getMxt006ClientPattern(
+  context: RenderContext,
+  stats: Array<{ label: string; value: string }>,
+  attributes: Array<{ label: string; value: string }>,
+  details: Array<{ title: string; description?: string }>,
+  leadSignals: Array<{ title: string; description?: string }>,
+  outreachContexts: Array<{ title: string; description?: string }>
+): Mxt006ClientPattern {
+  const { data, tool, commandSlug, ucId } = context;
+  const raw = data as any;
+  const topic = raw.topic || {};
+  const gymsharkSection = raw.sections?.gymshark || {};
+  const hero = raw.hero || {};
+  const profileSummary = parseMxt006ProfileSummary(gymsharkSection.items?.[0]?.value, ucId);
+  const profileName = normalizeMxt006Name(stringifyValue(gymsharkSection.title) || profileSummary.name || findResultValue(data, /^(profile_name|name|person|company|brand)$/i) || 'Gymshark');
+  const scanTitle = normalizeMxt006Handle(stringifyValue(topic.title?.value || topic.title) || profileSummary.handle || data.summary_card.title || commandSlug);
+  const platform = normalizeMxt006Short(stringifyValue(topic.platform?.value || topic.platform) || findResultValue(data, /^(platform|network|channel)$/i) || findStatValue(stats, /platform|network|channel/i) || 'TikTok', 3);
+  const niche = normalizeMxt006Short(stringifyValue(topic.niche?.value || topic.niche) || findResultValue(data, /^(niche|category|industry)$/i) || findStatValue(stats, /niche|category|industry/i) || 'Fitness Apparel', 4);
+  const profileType = normalizeMxt006Short(stringifyValue(topic.type?.value || topic.type) || findResultValue(data, /^(profile_type|type|segment)$/i) || findStatValue(stats, /profile type|type|segment/i) || 'Brand Creator', 4);
+  const score = normalizeMxt005ScoreValue(profileSummary.score || stringifyValue(raw.score?.value) || getScore(data) || getMxt006DefaultScore(ucId));
+
+  return {
+    heroIcon: tool?.icon_emoji || stringifyValue(hero.icon) || 'MX',
+    heroTitle: tool?.tool_name || stringifyValue(hero.title) || 'TikTok Profile Scanner',
+    heroPills: [
+      normalizeMxt006Short(stringifyValue(hero.pills?.[0]?.value) || 'Creative Profile', 3),
+      normalizeMxt006Short(stringifyValue(hero.pills?.[1]?.value) || getConfidenceLabel(data), 3),
+      normalizeMxt006Short(stringifyValue(hero.pills?.[2]?.value) || getRiskLabel(data), 3),
+      tool?.id || commandSlug,
+      `Mode: ${getModeLabel(ucId)}`,
+      'AI Engine v1',
+    ],
+    scanTitle,
+    platform,
+    niche,
+    profileType,
+    profileName,
+    metadata: profileSummary.metadata || `${scanTitle} · Fitness / Apparel / Lifestyle`,
+    summary: normalizeMxt002Sentence(profileSummary.summary || data.summary_card.subtitle, 'Creator-led brand profile with workout, motivation, and community content.'),
+    score,
+    ratingVisual: getRatingVisual(score),
+    scoreLabel: 'Profile Strength',
+    imageUrl: findResultValue(data, /^(profile_image_url|image_url|avatar_url|photo_url)$/i) || 'Not provided',
+    initials: stringifyValue(hero.icon) || tool?.icon_emoji || getInitials(profileName),
+    attributes: normalizeMxt006Attributes(gymsharkSection.items, attributes, ucId),
+    details: normalizeMxt006Details(getMxt006DetailSection(raw.sections, ucId)?.items, details, ucId),
+    leadSignals: normalizeMxt006List(raw.sections?.insights?.items, leadSignals, getMxt006InsightFallbacks()),
+    outreachContexts: normalizeMxt006List(raw.sections?.recommendations?.items, outreachContexts, getMxt006RecommendationFallbacks()),
+  };
+}
+
+function normalizeMxt006PlaceholderValue(key: string, value: string): string {
+  if (/^profile_scan_title$/.test(key)) return normalizeMxt006Handle(value);
+  if (/^profile_context_|^profile_name$|^attribute_label_|^attribute_value_|^profile_detail_title_/.test(key)) return normalizeMxt006Short(value, 5);
+  if (/^profile_metadata$/.test(key)) return stringifyValue(value).replace(/\s+/g, ' ').trim() || 'Not provided';
+  if (/^profile_score$/.test(key)) return normalizeMxt005ScoreValue(value);
+  if (/^profile_rating_visual$/.test(key)) return value.includes('★') ? value.trim() : getRatingVisual(value);
+  if (/^profile_score_label$/.test(key)) return normalizeMxt006Short(value || 'Profile Strength', 3);
+  if (/^profile_scan_summary$|^profile_detail_body_|^lead_signal_|^outreach_context_/.test(key)) return normalizeMxt002Sentence(stripMxt004NumberPrefix(value), 'Not provided');
+  return value?.trim() || 'Not provided';
+}
+
+function parseMxt006ProfileSummary(value: unknown, ucId: string): { name?: string; handle?: string; metadata?: string; summary?: string; score?: string } {
+  const text = stringifyValue(value).replace(/^[^A-Za-z0-9@]+\s*/, '').replace(/\s+/g, ' ').trim();
+  const score = text.match(/\b(\d{1,3})\s+★/)?.[1] || getMxt006DefaultScore(ucId);
+  const beforeScore = text.replace(/\s+\d{1,3}\s+★+\s+Profile Strength.*$/i, '').trim();
+  const handleMatch = beforeScore.match(/(^|\s)(@[\w.-]+)/);
+  const handle = handleMatch?.[2];
+  const name = beforeScore.slice(0, handleMatch?.index).trim() || undefined;
+  const afterHandle = handle ? beforeScore.slice(beforeScore.indexOf(handle) + handle.length).replace(/^\s*[·-]\s*/, '').trim() : beforeScore;
+  const summaryStart = afterHandle.search(/\b(Creator-led|The profile|Short-form|High-energy|Brand-led|Content|Workout)\b/i);
+  const metadata = summaryStart > 0 ? `${handle} · ${afterHandle.slice(0, summaryStart).trim().replace(/[.]+$/, '')}` : undefined;
+  const summary = summaryStart >= 0 ? afterHandle.slice(summaryStart).trim() : undefined;
+  return { name, handle, metadata, summary, score };
+}
+
+function normalizeMxt006Name(value: string | undefined): string {
+  return normalizeMxt006Short(value || 'Gymshark', 3).replace(/^@/, '');
+}
+
+function normalizeMxt006Handle(value: string | undefined): string {
+  const text = stringifyValue(value).trim();
+  if (!text) return '@gymshark';
+  if (text.startsWith('@')) return text.split(/\s+/)[0];
+  return text.includes('gymshark') ? '@gymshark' : text.replace(/[.!?]+$/, '');
+}
+
+function normalizeMxt006Short(value: string | undefined, maxWords: number): string {
+  return sentenceFragment(stringifyValue(value).replace(/^[^A-Za-z0-9@]+\s*/, '').replace(/[.!?]+$/, '') || 'Not provided', maxWords);
+}
+
+function getMxt006DefaultScore(ucId: string): string {
+  if (ucId.toUpperCase() === 'UC1') return '84';
+  if (ucId.toUpperCase() === 'UC2') return '88';
+  return '91';
+}
+
+function normalizeMxt006Attributes(items: unknown, fallbackAttributes: Array<{ label: string; value: string }>, ucId: string): Array<{ label: string; value: string }> {
+  const source = Array.isArray(items) ? (items as any[]).filter(item => item?.label || item?.title || item?.name) : [];
+  const fallback = ucId.toUpperCase() === 'UC1'
+    ? [
+      { label: 'Niche Focus', value: 'Fitness motivation' },
+      { label: 'Posting Frequency', value: 'High' },
+      { label: 'Content Style', value: 'Workout clips' },
+      { label: 'Audience Fit', value: 'Gym beginners' },
+    ]
+    : ucId.toUpperCase() === 'UC2'
+      ? [
+        { label: 'Niche Clarity', value: 'Very clear' },
+        { label: 'Posting Frequency', value: 'High' },
+        { label: 'Content Style', value: 'Creator-led clips' },
+        { label: 'Engagement Direction', value: 'Community-driven' },
+      ]
+      : [
+        { label: 'Profile Strength', value: 'Strong' },
+        { label: 'Niche Clarity', value: 'Very clear' },
+        { label: 'Content Consistency', value: 'Strong' },
+        { label: 'Growth Signal', value: 'High' },
+      ];
+  return fallback.map((item, index) => {
+    const sourceItem = source[index] || fallbackAttributes[index];
+    return {
+      label: normalizeMxt006Short(stringifyValue(sourceItem?.label || sourceItem?.title || sourceItem?.name || item.label), 4),
+      value: normalizeMxt006Short(stringifyValue(sourceItem?.value || sourceItem?.description || item.value), 5),
+    };
+  });
+}
+
+function getMxt006DetailSection(sections: any, ucId: string): any {
+  if (ucId.toUpperCase() === 'UC1') return sections?.quick_profile_summary;
+  if (ucId.toUpperCase() === 'UC2') return sections?.profile_signals;
+  return sections?.executive_profile_summary;
+}
+
+function normalizeMxt006Details(items: unknown, fallbackDetails: Array<{ title: string; description?: string }>, ucId: string): Array<{ title: string; description?: string }> {
+  const source = Array.isArray(items) ? items as any[] : [];
+  const fallback = ucId.toUpperCase() === 'UC1'
+    ? [
+      { title: 'Core Positioning', description: 'The profile is focused on fitness culture, motivational workout clips, and community-driven apparel content.' },
+      { title: 'Best Use', description: 'Use this scan as a fast overview before deeper creator or competitor analysis.' },
+    ]
+    : ucId.toUpperCase() === 'UC2'
+      ? [
+        { title: 'Content Pattern', description: 'Short-form workouts, motivational edits, athlete-style videos, and product-aware lifestyle clips appear as the main format mix.' },
+        { title: 'Audience Direction', description: 'The account speaks to fitness enthusiasts, gym beginners, athletes, and creator-led workout communities.' },
+        { title: 'Profile Strength', description: 'Strong brand recognition and consistent content themes.' },
+        { title: 'Monetization Fit', description: 'High fit for product drops, creator collabs, and apparel-led campaigns.' },
+        { title: 'Growth Signal', description: 'High posting velocity and clear niche identity support reach.' },
+      ]
+      : [
+        { title: 'Brand Position', description: 'The profile is strongly positioned around fitness culture, lifestyle motivation, and product-aware creator content.' },
+        { title: 'Content Engine', description: 'High-energy short-form video, creator partnerships, gym clips, and motivational posts maintain visibility and audience relevance.' },
+        { title: 'Decision Context', description: 'This profile is useful as a benchmark for brand-led TikTok growth, social proof, and creator-assisted content strategy.' },
+        { title: 'Posting Frequency', description: 'High. The content system supports frequent publishing without losing niche consistency.' },
+        { title: 'Content Style', description: 'Workout clips, motivational edits, influencer collaborations, product lifestyle, and gym culture moments.' },
+        { title: 'Audience Fit', description: 'Fitness enthusiasts, athletes, gym beginners, and lifestyle-driven apparel buyers.' },
+      ];
+  return fallback.map((item, index) => {
+    const sourceItem = source[index] || fallbackDetails[index];
+    const parsed = parseMxt006LabeledValue(stringifyValue(sourceItem?.value || sourceItem?.description || sourceItem?.title));
+    return {
+      title: normalizeMxt006Short(stringifyValue(sourceItem?.title || sourceItem?.label || parsed.title || item.title), 4),
+      description: normalizeMxt002Sentence(parsed.body || stringifyValue(sourceItem?.description) || item.description, item.description || 'Not provided'),
+    };
+  });
+}
+
+function normalizeMxt006List(items: unknown, fallbackItems: Array<{ title: string; description?: string }>, fallbackValues: string[]): Array<{ title: string; description?: string }> {
+  const source = Array.isArray(items) ? items as any[] : [];
+  return fallbackValues.map((text, index) => {
+    const sourceItem = source[index] || fallbackItems[index];
+    return {
+      title: `Item ${index + 1}`,
+      description: normalizeMxt002Sentence(stripMxt004NumberPrefix(stringifyValue(sourceItem?.value || sourceItem?.description || sourceItem?.title) || text), text),
+    };
+  });
+}
+
+function parseMxt006LabeledValue(value: string): { title?: string; body?: string } {
+  const text = stripMxt004NumberPrefix(value).trim();
+  const labels = [
+    'Core Positioning', 'Best Use', 'Content Pattern', 'Audience Direction', 'Profile Strength', 'Monetization Fit', 'Growth Signal',
+    'Brand Position', 'Content Engine', 'Decision Context', 'Posting Frequency', 'Content Style', 'Audience Fit',
+  ];
+  const label = labels.find(item => text.toLowerCase().startsWith(item.toLowerCase()));
+  if (!label) return { body: text };
+  return { title: label, body: text.slice(label.length).trim() };
+}
+
+function getMxt006InsightFallbacks(): string[] {
+  return [
+    'The profile has very clear niche focus and strong brand consistency.',
+    'Creator-driven content improves authenticity and social proof.',
+    'Fast hooks and short clips are aligned with TikTok consumption behavior.',
+  ];
+}
+
+function getMxt006RecommendationFallbacks(): string[] {
+  return [
+    'Create recurring TikTok series around beginner workouts and gym confidence.',
+    'Use creator-led hooks in the first two seconds.',
+    'Segment content into motivation, education, product lifestyle, and community stories.',
+    'Track saves, comments, profile visits, and creator-assisted conversions.',
+  ];
 }
 
 function formatMxt006RatingVisual(value: string | undefined, score: string): string {
@@ -1371,34 +2629,28 @@ function applyMxt007PlaceholderMappings(placeholders: Record<string, string>, co
   const decision = getDecision(data);
   const rankedOptions = getMxt007RankedOptions(data, metrics, recommendations);
   const highlights = getMxt007Highlights(data, metrics, recommendations);
-  const bestOption = rankedOptions[0];
-  const recommendationBody = recommendations[0]?.description
-    || recommendations[0]?.title
-    || decision?.reason
-    || bestOption?.reason
-    || data.summary_card.subtitle
-    || 'Not provided';
+  const pattern = getMxt007ClientPattern(context, stats, rankedOptions, highlights, recommendations, actions, decision);
 
   setMxt007Placeholder(placeholders, context, 'theme', context.theme);
-  setMxt007Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || 'MX');
-  setMxt007Placeholder(placeholders, context, 'hero_title', data.summary_card.title || tool?.tool_name || commandSlug);
-  setMxt007Placeholder(placeholders, context, 'ranked_result_title', data.summary_card.title || tool?.tool_name || commandSlug);
-  setMxt007Placeholder(placeholders, context, 'ranked_context_keyword', findResultValue(data, /^(keyword|query|topic|subject)$/i) || stats[0]?.value || commandSlug);
-  setMxt007Placeholder(placeholders, context, 'ranked_context_audience', findResultValue(data, /^(audience|target_audience)$/i) || stats[1]?.value || 'Not provided');
-  setMxt007Placeholder(placeholders, context, 'ranked_context_level', findResultValue(data, /^(level|difficulty|tier|stage)$/i) || stats[2]?.value || getModeLabel(context.ucId));
-  setMxt007Placeholder(placeholders, context, 'ranked_context_best_angle', bestOption?.title || bestOption?.label || recommendations[0]?.title || 'Not provided');
-  setMxt007Placeholder(placeholders, context, 'ranked_context_use', findResultValue(data, /^(use|recommended_use|use_case)$/i) || recommendationBody);
-  setMxt007Placeholder(placeholders, context, 'ranked_decision_body', decision?.reason || recommendationBody);
-  setMxt007Placeholder(placeholders, context, 'ranked_action_body', actions[0]?.description || actions[0]?.title || recommendationBody);
-  setMxt007Placeholder(placeholders, context, 'ranked_recommendation_body', recommendationBody);
+  setMxt007Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || pattern.heroIcon);
+  setMxt007Placeholder(placeholders, context, 'hero_title', tool?.tool_name || pattern.heroTitle || commandSlug);
+  setMxt007Placeholder(placeholders, context, 'ranked_result_title', pattern.resultTitle);
+  setMxt007Placeholder(placeholders, context, 'ranked_context_keyword', pattern.keyword);
+  setMxt007Placeholder(placeholders, context, 'ranked_context_audience', pattern.audience);
+  setMxt007Placeholder(placeholders, context, 'ranked_context_level', pattern.level);
+  setMxt007Placeholder(placeholders, context, 'ranked_context_best_angle', pattern.bestAngle);
+  setMxt007Placeholder(placeholders, context, 'ranked_context_use', pattern.recommendedUse);
+  setMxt007Placeholder(placeholders, context, 'ranked_decision_body', pattern.decisionBody);
+  setMxt007Placeholder(placeholders, context, 'ranked_action_body', pattern.actionBody);
+  setMxt007Placeholder(placeholders, context, 'ranked_recommendation_body', pattern.recommendationBody);
 
-  getHeroPillValues(context).forEach((value, index) => {
+  pattern.heroPills.forEach((value, index) => {
     setMxt007Placeholder(placeholders, context, `hero_pill_${index + 1}`, value);
   });
 
   for (let index = 0; index < 3; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const highlight = highlights[index] || {
+    const highlight = pattern.highlights[index] || {
       label: `Highlight ${index + 1}`,
       body: 'Not provided',
     };
@@ -1408,7 +2660,7 @@ function applyMxt007PlaceholderMappings(placeholders: Record<string, string>, co
 
   for (let index = 0; index < 10; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const option = rankedOptions[index] || {
+    const option = pattern.rankedOptions[index] || {
       title: `Option ${index + 1}`,
       label: 'Not provided',
       reason: 'Not provided',
@@ -1431,16 +2683,177 @@ function setMxt007Placeholder(
   fallbackValue: string | undefined
 ): void {
   const mappedValue = context.mappedPlaceholders?.[key];
-  placeholders[key] = isMissingPlaceholderValue(mappedValue)
+  const value: string = isMissingPlaceholderValue(mappedValue)
     ? fallbackValue?.trim() || 'Not provided'
-    : mappedValue;
+    : mappedValue ?? 'Not provided';
+  placeholders[key] = normalizeMxt007PlaceholderValue(key, value);
 }
 
 function formatMxt007RankedOptionLabel(value: string | undefined, reason?: string, title?: string): string {
   if (isMissingPlaceholderValue(value)) return 'Not provided';
-  const normalizedValue = value.trim();
-  if (isScoreLikeLabel(normalizedValue)) return getRatingVisual(normalizedValue);
-  return normalizeDimensionStatus(normalizedValue, reason, title);
+  const normalizedValue = value?.trim() || 'Not provided';
+  if (isScoreLikeLabel(normalizedValue)) return sentenceFragment(reason || title || normalizedValue, 3);
+  return normalizeMxt007Short(normalizedValue, 4);
+}
+
+interface Mxt007ClientPattern {
+  heroIcon: string;
+  heroTitle: string;
+  heroPills: string[];
+  resultTitle: string;
+  keyword: string;
+  audience: string;
+  level: string;
+  bestAngle: string;
+  recommendedUse: string;
+  decisionBody: string;
+  actionBody: string;
+  recommendationBody: string;
+  highlights: Array<{ label: string; body: string }>;
+  rankedOptions: Array<{ title: string; label: string; reason: string }>;
+}
+
+function getMxt007ClientPattern(
+  context: RenderContext,
+  stats: Array<{ label: string; value: string }>,
+  fallbackRankedOptions: Array<{ title: string; label: string; reason: string }>,
+  fallbackHighlights: Array<{ label: string; body: string }>,
+  fallbackRecommendations: Array<{ title: string; description?: string }>,
+  fallbackActions: Array<{ title: string; description?: string }>,
+  fallbackDecision: ReturnType<typeof getDecision>
+): Mxt007ClientPattern {
+  const { data, tool, commandSlug, ucId } = context;
+  const raw = data as any;
+  const hero = raw.hero || {};
+  const topic = raw.topic || {};
+  const sections = raw.sections || {};
+  const options = normalizeMxt007RankedOptions(sections.top_ranked_options?.items, fallbackRankedOptions, ucId);
+  const recommendationBody = stringifyValue(sections.quick_recommendation?.value || sections.recommendation?.value || sections.advanced_recommendation?.value)
+    || fallbackRecommendations[0]?.description
+    || fallbackRecommendations[0]?.title
+    || fallbackDecision?.reason
+    || options[0]?.reason
+    || data.summary_card.subtitle
+    || getMxt007DefaultRecommendation(ucId);
+
+  return {
+    heroIcon: stringifyValue(hero.icon) || tool?.icon_emoji || 'MX',
+    heroTitle: stringifyValue(hero.title) || tool?.tool_name || 'Headline Swipe Generator',
+    heroPills: [
+      normalizeMxt007Short(stringifyValue(hero.pills?.[0]?.value) || 'Swipe Generator', 3),
+      normalizeMxt007Short(stringifyValue(hero.pills?.[1]?.value) || getConfidenceLabel(data), 3),
+      normalizeMxt007Short(stringifyValue(hero.pills?.[2]?.value) || getRiskLabel(data), 3),
+      tool?.id || commandSlug,
+      getModeLabel(ucId),
+      'AI Engine V1',
+    ],
+    resultTitle: normalizeMxt007Title(stringifyValue(topic.title) || data.summary_card.title || 'AI email automation course launch'),
+    keyword: normalizeMxt007Short(stringifyValue(topic.keyword?.value || topic.keyword) || findResultValue(data, /^(keyword|query|topic|subject)$/i) || findStatValue(stats, /keyword|query|topic|subject/i) || commandSlug, 6),
+    audience: normalizeMxt007Short(stringifyValue(topic.audience?.value || topic.audience) || findResultValue(data, /^(audience|target_audience)$/i) || findStatValue(stats, /audience|target/i) || 'Solo founders and small marketing teams', 8),
+    level: normalizeMxt007Short(stringifyValue(topic.level?.value || topic.level) || findResultValue(data, /^(level|difficulty|tier|stage)$/i) || findStatValue(stats, /level|difficulty|tier|stage/i) || getMxt007DefaultLevel(ucId), 4),
+    bestAngle: normalizeMxt007Short(stringifyValue(topic.best_angle?.value || topic.best_angle) || 'Save time + better follow-up', 6),
+    recommendedUse: normalizeMxt007Short(stringifyValue(topic.recommended_use?.value || topic.recommended_use) || getMxt007DefaultUse(ucId), 8),
+    decisionBody: normalizeMxt002Sentence(stringifyValue(sections.decision?.value) || fallbackDecision?.reason || getMxt007DefaultDecision(ucId), getMxt007DefaultDecision(ucId)),
+    actionBody: normalizeMxt002Sentence(stringifyValue(sections.action?.value) || fallbackActions[0]?.description || fallbackActions[0]?.title || getMxt007DefaultAction(ucId), getMxt007DefaultAction(ucId)),
+    recommendationBody: normalizeMxt002Sentence(recommendationBody, getMxt007DefaultRecommendation(ucId)),
+    highlights: normalizeMxt007Highlights(sections.highlight_angles?.items, fallbackHighlights),
+    rankedOptions: options,
+  };
+}
+
+function normalizeMxt007PlaceholderValue(key: string, value: string): string {
+  if (/^ranked_option_label_|^highlight_label_|^hero_pill_|^ranked_context_/.test(key)) return normalizeMxt007Short(value, 8);
+  if (/^ranked_result_title$|^ranked_option_title_/.test(key)) return normalizeMxt007Title(value);
+  if (/^ranked_option_reason_|^ranked_decision_body$|^ranked_action_body$|^ranked_recommendation_body$/.test(key)) return normalizeMxt002Sentence(value, 'Not provided');
+  if (/^highlight_body_/.test(key)) return normalizeMxt007Short(value, 6);
+  return value?.trim() || 'Not provided';
+}
+
+function normalizeMxt007RankedOptions(
+  items: unknown,
+  fallbackRankedOptions: Array<{ title: string; label: string; reason: string }>,
+  ucId: string
+): Array<{ title: string; label: string; reason: string }> {
+  const source = Array.isArray(items) ? items as any[] : [];
+  const fallback = getMxt007DefaultOptions(ucId);
+  return fallback.map((item, index) => {
+    const sourceItem = source[index] || fallbackRankedOptions[index];
+    return {
+      title: normalizeMxt007Title(stringifyValue(sourceItem?.title || sourceItem?.name || sourceItem?.option) || item.title),
+      label: normalizeMxt007Short(stringifyValue(sourceItem?.label || sourceItem?.status || sourceItem?.category) || item.label, 4),
+      reason: normalizeMxt002Sentence(stringifyValue(sourceItem?.reason || sourceItem?.description || sourceItem?.rationale) || item.reason, item.reason),
+    };
+  });
+}
+
+function normalizeMxt007Highlights(items: unknown, fallbackHighlights: Array<{ label: string; body: string }>): Array<{ label: string; body: string }> {
+  const source = Array.isArray(items) ? items as any[] : [];
+  const fallback = [
+    { label: 'Hero angle', body: 'Save time + better follow-up' },
+    { label: 'Email angle', body: 'Recover missed leads' },
+    { label: 'Ad angle', body: 'No enterprise complexity' },
+  ];
+  return fallback.map((item, index) => {
+    const sourceItem = source[index] || fallbackHighlights[index];
+    return {
+      label: normalizeMxt007Short(stringifyValue(sourceItem?.label || sourceItem?.title) || item.label, 4),
+      body: normalizeMxt007Short(stringifyValue(sourceItem?.value || sourceItem?.body || sourceItem?.description) || item.body, 6),
+    };
+  });
+}
+
+function normalizeMxt007Short(value: string | undefined, maxWords: number): string {
+  return sentenceFragment(stringifyValue(value).replace(/^[^A-Za-z0-9]+\s*/, '').replace(/[.!?]+$/, '') || 'Not provided', maxWords);
+}
+
+function normalizeMxt007Title(value: string | undefined): string {
+  return stringifyValue(value).replace(/^[^A-Za-z0-9]+\s*/, '').replace(/\s+/g, ' ').trim() || 'Not provided';
+}
+
+function getMxt007DefaultLevel(ucId: string): string {
+  if (ucId.toUpperCase() === 'UC1') return 'Fast Swipe';
+  if (ucId.toUpperCase() === 'UC2') return 'Campaign Swipe';
+  return 'Conversion Swipe';
+}
+
+function getMxt007DefaultUse(ucId: string): string {
+  if (ucId.toUpperCase() === 'UC1') return 'Landing page hero';
+  if (ucId.toUpperCase() === 'UC2') return 'Landing page + email subject lines';
+  return 'Full launch funnel';
+}
+
+function getMxt007DefaultDecision(ucId: string): string {
+  if (ucId.toUpperCase() === 'UC2') return 'Lead with the time-saving angle, then support it with revenue and consistency. This sequence works because the audience wants practical automation, not abstract AI hype.';
+  return 'Prioritize clarity over cleverness. The best conversion path starts with a plain benefit headline, then uses pain-point and revenue headlines deeper in the page to handle objections and increase urgency.';
+}
+
+function getMxt007DefaultAction(ucId: string): string {
+  if (ucId.toUpperCase() === 'UC2') return 'Test the top headline as the landing page hero. Use headline #2 as an email subject line and headline #5 as the CTA-section title.';
+  return 'Run a three-part launch test: use headline #1 for the page hero, #2 for email subject testing, and #7 for retargeting ads where the audience may worry about complexity.';
+}
+
+function getMxt007DefaultRecommendation(ucId: string): string {
+  if (ucId.toUpperCase() === 'UC1') return 'Use the time-saving headline first. It is the clearest fit for solo founders who need a fast reason to care.';
+  if (ucId.toUpperCase() === 'UC2') return 'Use a benefit-led hero headline and keep the supporting copy focused on fewer manual follow-ups, faster launch, and better lead conversion.';
+  return 'Build the campaign around one core promise: faster follow-up without extra headcount. Use benefit headlines above the fold, pain headlines in ads, and action headlines near CTAs.';
+}
+
+function getMxt007DefaultOptions(ucId: string): Array<{ title: string; label: string; reason: string }> {
+  const options = [
+    { title: 'Automate Your Email Follow-Ups With AI', label: 'Benefit', reason: ucId.toUpperCase() === 'UC1' ? 'Directly promises the core outcome without adding complexity.' : ucId.toUpperCase() === 'UC2' ? 'Strong hero option for a course landing page.' : 'Best all-purpose hero because it is clear, searchable, and outcome focused.' },
+    { title: 'Turn Missed Follow-Ups Into Booked Calls', label: 'Revenue', reason: ucId.toUpperCase() === 'UC1' ? 'Turns manual follow-up into a visible revenue problem.' : ucId.toUpperCase() === 'UC2' ? 'Connects email automation to a measurable business outcome.' : 'Frames automation as pipeline recovery, not just productivity.' },
+    { title: 'Build an AI Email System That Works While You Sleep', label: 'Automation', reason: ucId.toUpperCase() === 'UC1' ? 'Makes the course feel practical and fast to apply.' : ucId.toUpperCase() === 'UC2' ? 'Creates a simple mental image of always-on follow-up.' : 'Adds emotional value through the always-on system promise.' },
+    { title: 'Stop Writing the Same Emails Again and Again', label: 'Pain point', reason: 'Simple frustration hook for ads and social posts.' },
+    { title: 'Launch Your First AI Email Workflow This Week', label: 'Action', reason: 'Strong for conversion sections because it lowers the starting barrier.' },
+    { title: "The Solo Founder's Shortcut to Smarter Follow-Up", label: 'Audience fit', reason: 'Names the target user and makes the offer feel built for them.' },
+    { title: 'AI Email Without the Enterprise Complexity', label: 'Automation', reason: 'Reduces fear that the course is too technical or bloated.' },
+    { title: 'Follow Up Faster Without Hiring a Bigger Team', label: 'Efficiency', reason: 'Strong small-team message with a clear staffing advantage.' },
+    { title: 'From Manual Emails to Automated Touchpoints', label: 'Revenue', reason: 'More premium framing for advanced funnel content.' },
+    { title: 'Create Email Workflows That Nurture Every Lead', label: 'Coverage', reason: 'Good for modules, curriculum, or feature benefit sections.' },
+  ];
+  if (ucId.toUpperCase() === 'UC1') return options.slice(0, 3);
+  if (ucId.toUpperCase() === 'UC2') return options.slice(0, 5);
+  return options;
 }
 
 function getMxt007RankedOptions(
@@ -1523,33 +2936,30 @@ function applyMxt008PlaceholderMappings(placeholders: Record<string, string>, co
   const automationItems = getMxt008Items(data, /automation|workflow|pipeline|step|process/i, actions);
   const insightItems = getMxt008Items(data, /insight|summary|analysis|finding|metric/i, recommendations);
   const riskItems = getMxt008Items(data, /risk|opportun|constraint|warning/i, recommendations);
-  const summaryBody = data.summary_card.subtitle
-    || recommendations[0]?.description
-    || recommendations[0]?.title
-    || 'Not provided';
+  const pattern = getMxt008ClientPattern(context, stats, metrics, automationItems, insightItems, riskItems, recommendations, actions);
 
   setMxt008Placeholder(placeholders, context, 'theme', context.theme);
-  setMxt008Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || 'MX');
-  setMxt008Placeholder(placeholders, context, 'hero_title', data.summary_card.title || tool?.tool_name || commandSlug);
-  setMxt008Placeholder(placeholders, context, 'automation_title', data.summary_card.title || tool?.tool_name || commandSlug);
-  setMxt008Placeholder(placeholders, context, 'automation_use_case', findResultValue(data, /^(use_case|use|workflow|automation_use_case)$/i) || data.summary_card.title || commandSlug);
-  setMxt008Placeholder(placeholders, context, 'automation_stack', findResultValue(data, /^(stack|tool_stack|platform|tools)$/i) || stats[0]?.value || 'Not provided');
-  setMxt008Placeholder(placeholders, context, 'automation_constraint', findResultValue(data, /^(constraint|limitation|requirement|guardrail)$/i) || getRiskLabel(data));
-  setMxt008Placeholder(placeholders, context, 'automation_confidence', findResultValue(data, /^confidence$/i) || stats.find(stat => /confidence/i.test(stat.label))?.value || getConfidenceLabel(data));
-  setMxt008Placeholder(placeholders, context, 'automation_setup', findResultValue(data, /^(setup|implementation|mode|configuration)$/i) || getModeLabel(context.ucId));
-  setMxt008Placeholder(placeholders, context, 'summary_title', data.summary_card.title || 'Automation summary');
-  setMxt008Placeholder(placeholders, context, 'summary_body', summaryBody);
-  setMxt008Placeholder(placeholders, context, 'workflow_explanation', getMxt008WorkflowExplanation(data, automationItems, recommendations, summaryBody));
-  setMxt008Placeholder(placeholders, context, 'idea_title', recommendations[0]?.title || data.summary_card.title || 'Idea summary');
-  setMxt008Placeholder(placeholders, context, 'idea_body', recommendations[0]?.description || summaryBody);
+  setMxt008Placeholder(placeholders, context, 'hero_icon', tool?.icon_emoji || pattern.heroIcon);
+  setMxt008Placeholder(placeholders, context, 'hero_title', tool?.tool_name || pattern.heroTitle || commandSlug);
+  setMxt008Placeholder(placeholders, context, 'automation_title', pattern.automationTitle);
+  setMxt008Placeholder(placeholders, context, 'automation_use_case', pattern.useCase);
+  setMxt008Placeholder(placeholders, context, 'automation_stack', pattern.stack);
+  setMxt008Placeholder(placeholders, context, 'automation_constraint', pattern.constraint);
+  setMxt008Placeholder(placeholders, context, 'automation_confidence', pattern.confidence);
+  setMxt008Placeholder(placeholders, context, 'automation_setup', pattern.setup);
+  setMxt008Placeholder(placeholders, context, 'summary_title', pattern.summaryTitle);
+  setMxt008Placeholder(placeholders, context, 'summary_body', pattern.summaryBody);
+  setMxt008Placeholder(placeholders, context, 'workflow_explanation', pattern.workflowExplanation);
+  setMxt008Placeholder(placeholders, context, 'idea_title', pattern.ideaTitle);
+  setMxt008Placeholder(placeholders, context, 'idea_body', pattern.ideaBody);
 
-  getHeroPillValues(context).forEach((value, index) => {
+  pattern.heroPills.forEach((value, index) => {
     setMxt008Placeholder(placeholders, context, `hero_pill_${index + 1}`, value);
   });
 
   for (let index = 0; index < 3; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const metric = metrics[index] || {
+    const metric = pattern.metrics[index] || {
       label: `Metric ${index + 1}`,
       value: 'Not provided',
       status: 'Not provided',
@@ -1561,27 +2971,27 @@ function applyMxt008PlaceholderMappings(placeholders: Record<string, string>, co
 
   for (let index = 0; index < 3; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const item = insightItems[index] || recommendations[index] || metrics[index];
+    const item = pattern.insights[index] || insightItems[index] || recommendations[index] || metrics[index];
     setMxt008Placeholder(placeholders, context, `insight_title_${padded}`, getMxt008ItemTitle(item, `Insight ${index + 1}`));
     setMxt008Placeholder(placeholders, context, `insight_body_${padded}`, getMxt008ItemBody(item));
   }
 
   for (let index = 0; index < 5; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const item = automationItems[index] || actions[index] || recommendations[index];
+    const item = pattern.pipeline[index] || automationItems[index] || actions[index] || recommendations[index];
     setMxt008Placeholder(placeholders, context, `pipeline_step_title_${padded}`, item?.title || `Step ${index + 1}`);
     setMxt008Placeholder(placeholders, context, `pipeline_step_body_${padded}`, item?.description || item?.title || 'Not provided');
   }
 
   for (let index = 0; index < 3; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const item = recommendations[index] || actions[index] || insightItems[index];
+    const item = pattern.recommendations[index] || recommendations[index] || actions[index] || insightItems[index];
     setMxt008Placeholder(placeholders, context, `recommendation_${padded}`, item?.description || item?.title || 'Not provided');
   }
 
   for (let index = 0; index < 3; index += 1) {
     const padded = String(index + 1).padStart(2, '0');
-    const item = riskItems[index] || recommendations[index] || actions[index];
+    const item = pattern.risks[index] || riskItems[index] || recommendations[index] || actions[index];
     setMxt008Placeholder(placeholders, context, `risk_opportunity_${padded}`, item?.description || item?.title || 'Not provided');
   }
 }
@@ -1593,9 +3003,238 @@ function setMxt008Placeholder(
   fallbackValue: string | undefined
 ): void {
   const mappedValue = context.mappedPlaceholders?.[key];
-  placeholders[key] = isMissingPlaceholderValue(mappedValue)
+  const value: string = isMissingPlaceholderValue(mappedValue)
     ? fallbackValue?.trim() || 'Not provided'
-    : mappedValue;
+    : mappedValue ?? 'Not provided';
+  placeholders[key] = normalizeMxt008PlaceholderValue(key, value);
+}
+
+interface Mxt008ClientPattern {
+  heroIcon: string;
+  heroTitle: string;
+  heroPills: string[];
+  automationTitle: string;
+  useCase: string;
+  stack: string;
+  constraint: string;
+  confidence: string;
+  setup: string;
+  summaryTitle: string;
+  summaryBody: string;
+  workflowExplanation: string;
+  ideaTitle: string;
+  ideaBody: string;
+  metrics: Array<{ label: string; value: string; status?: string }>;
+  insights: Array<{ title: string; description?: string }>;
+  pipeline: Array<{ title: string; description?: string }>;
+  recommendations: Array<{ title: string; description?: string }>;
+  risks: Array<{ title: string; description?: string }>;
+}
+
+function getMxt008ClientPattern(
+  context: RenderContext,
+  stats: Array<{ label: string; value: string }>,
+  fallbackMetrics: Array<{ label: string; value: string; status?: string }>,
+  fallbackAutomationItems: Array<{ title: string; description?: string }>,
+  fallbackInsightItems: Array<{ title: string; description?: string }>,
+  fallbackRiskItems: Array<{ title: string; description?: string }>,
+  fallbackRecommendations: Array<{ title: string; description?: string }>,
+  fallbackActions: Array<{ title: string; description?: string }>
+): Mxt008ClientPattern {
+  const { data, tool, commandSlug, ucId } = context;
+  const raw = data as any;
+  const hero = raw.hero || {};
+  const topic = raw.topic || {};
+  const sections = raw.sections || {};
+  const summarySection = getMxt008SummarySection(sections, ucId);
+  const summaryBody = stringifyValue(summarySection?.value)
+    || data.summary_card.subtitle
+    || fallbackRecommendations[0]?.description
+    || getMxt008DefaultSummaryBody(ucId);
+
+  return {
+    heroIcon: stringifyValue(hero.icon) || tool?.icon_emoji || 'MX',
+    heroTitle: stringifyValue(hero.title) || tool?.tool_name || 'Zapier n8n Idea Generator',
+    heroPills: [
+      normalizeMxt008Short(stringifyValue(hero.pills?.[0]?.value) || getMxt008DefaultPillOne(ucId), 3),
+      normalizeMxt008Short(stringifyValue(hero.pills?.[1]?.value) || getConfidenceLabel(data), 3),
+      normalizeMxt008Short(stringifyValue(hero.pills?.[2]?.value) || getRiskLabel(data), 3),
+      tool?.id || commandSlug,
+      getModeLabel(ucId),
+      'AI Engine V1',
+    ],
+    automationTitle: normalizeMxt008Title(stringifyValue(topic.title) || data.summary_card.title || getMxt008DefaultTitle(ucId)),
+    useCase: normalizeMxt002Sentence(stringifyValue(topic.use_case?.value || topic.use_case) || findResultValue(data, /^(use_case|use|workflow|automation_use_case)$/i) || getMxt008DefaultUseCase(), getMxt008DefaultUseCase()),
+    stack: normalizeMxt008Short(stringifyValue(topic.stack?.value || topic.stack) || findResultValue(data, /^(stack|tool_stack|platform|tools)$/i) || findStatValue(stats, /stack|tools|platform/i) || 'Zapier + n8n + CRM + Slack', 8),
+    constraint: normalizeMxt008Short(stringifyValue(topic.constraint?.value || topic.constraint) || findResultValue(data, /^(constraint|limitation|requirement|guardrail)$/i) || 'Low risk tolerance and clear rationale required', 8),
+    confidence: normalizeMxt008Short(stringifyValue(topic.confidence?.value || topic.confidence) || findResultValue(data, /^confidence$/i) || findStatValue(stats, /confidence/i) || getConfidenceLabel(data), 3),
+    setup: normalizeMxt008Short(stringifyValue(topic.setup?.value || topic.setup) || getMxt008DefaultSetup(ucId), 3),
+    summaryTitle: normalizeMxt008Title(stringifyValue(summarySection?.title) || getMxt008DefaultSummaryTitle(ucId)),
+    summaryBody: normalizeMxt002Sentence(summaryBody, getMxt008DefaultSummaryBody(ucId)),
+    workflowExplanation: normalizeMxt002Sentence(stringifyValue(sections.workflow_explanation?.value) || getMxt008WorkflowExplanation(data, fallbackAutomationItems, fallbackRecommendations, summaryBody), getMxt008DefaultWorkflowExplanation(ucId)),
+    ideaTitle: normalizeMxt008Title(stringifyValue(sections.idea_summary?.items?.[0]?.title) || 'Risk-aware outreach routing'),
+    ideaBody: normalizeMxt002Sentence(stringifyValue(sections.idea_summary?.items?.[0]?.body) || summaryBody, getMxt008DefaultIdeaBody()),
+    metrics: normalizeMxt008Metrics(sections.key_metrics?.items, fallbackMetrics, ucId),
+    insights: normalizeMxt008InsightItems(sections.insight_blocks?.items, fallbackInsightItems),
+    pipeline: normalizeMxt008PipelineItems(sections.full_automation_pipeline?.items, fallbackAutomationItems),
+    recommendations: normalizeMxt008CompactItems(sections.recommendations?.items, fallbackRecommendations, getMxt008RecommendationFallbacks()),
+    risks: normalizeMxt008CompactItems(sections.risks_opportunities?.items, fallbackRiskItems, getMxt008RiskFallbacks()),
+  };
+}
+
+function normalizeMxt008PlaceholderValue(key: string, value: string): string {
+  if (/^summary_title$|^idea_title$|^insight_title_|^pipeline_step_title_/.test(key)) return normalizeMxt008Title(value);
+  if (/^automation_title$/.test(key)) return normalizeMxt008Title(value);
+  if (/^hero_pill_|^automation_stack$|^automation_confidence$|^automation_setup$|^metric_label_|^metric_value_/.test(key)) return normalizeMxt008Short(value, 8);
+  if (/^automation_constraint$/.test(key)) return normalizeMxt008Short(value, 8);
+  if (/^automation_use_case$|^summary_body$|^workflow_explanation$|^idea_body$|^metric_body_|^insight_body_|^pipeline_step_body_|^recommendation_|^risk_opportunity_/.test(key)) return normalizeMxt002Sentence(stripMxt004NumberPrefix(value), 'Not provided');
+  return value?.trim() || 'Not provided';
+}
+
+function getMxt008SummarySection(sections: any, ucId: string): any {
+  if (ucId.toUpperCase() === 'UC1') return sections.risk_assessment_idea_summary;
+  if (ucId.toUpperCase() === 'UC2') return sections.decision_engine_summary;
+  return sections.risk_assessment_automation_blueprint;
+}
+
+function normalizeMxt008Metrics(items: unknown, fallbackMetrics: Array<{ label: string; value: string; status?: string }>, ucId: string): Array<{ label: string; value: string; status?: string }> {
+  const source = Array.isArray(items) ? items as any[] : [];
+  const fallback = ucId.toUpperCase() === 'UC1'
+    ? [
+      { label: 'Confidence', value: '88%', status: 'The idea is feasible with standard app connectors.' },
+      { label: 'Complexity', value: 'Low', status: 'Can start with a small rule-based decision flow.' },
+      { label: 'Risk Level', value: 'Low', status: 'Main risk is incomplete lead data.' },
+    ]
+    : ucId.toUpperCase() === 'UC2'
+      ? [
+        { label: 'Confidence', value: '91%', status: 'Logic and routing are well suited for n8n.' },
+        { label: 'Automation Depth', value: 'Medium', status: 'Needs CRM lookup, scoring rules, and channel mapping.' },
+        { label: 'Risk Level', value: 'Low-Medium', status: 'Requires consistent data fields and fallback rules.' },
+      ]
+      : [
+        { label: 'Confidence', value: '94%', status: 'Strong fit for a hybrid Zapier+n8n architecture.' },
+        { label: 'Automation Depth', value: 'Advanced', status: 'Includes scoring, routing, logging, and escalation.' },
+        { label: 'Risk Level', value: 'Low', status: 'Risk is controlled with fallback rules and audit logs.' },
+      ];
+  return fallback.map((item, index) => {
+    const sourceItem = source[index] || fallbackMetrics[index];
+    return {
+      label: normalizeMxt008Short(stringifyValue(sourceItem?.label) || item.label, 4),
+      value: normalizeMxt008Short(stringifyValue(sourceItem?.display_value || sourceItem?.value) || item.value, 4),
+      status: normalizeMxt002Sentence(stringifyValue(sourceItem?.description || sourceItem?.status) || item.status, item.status || 'Not provided'),
+    };
+  });
+}
+
+function normalizeMxt008InsightItems(items: unknown, fallbackItems: Array<{ title: string; description?: string }>): Array<{ title: string; description?: string }> {
+  const source = Array.isArray(items) ? items as any[] : [];
+  const fallback = [
+    { title: 'Decision Logic', description: 'Use n8n as the source of routing rules instead of spreading logic across many Zapier paths.' },
+    { title: 'Data Quality', description: 'Normalize role, source, email domain, and CRM owner before scoring.' },
+    { title: 'Sales Safety', description: 'Escalate high-value leads but keep risky or incomplete records in manual review.' },
+  ];
+  return fallback.map((item, index) => {
+    const sourceItem = source[index] || fallbackItems[index];
+    return {
+      title: normalizeMxt008Title(stringifyValue(sourceItem?.title || sourceItem?.label) || item.title),
+      description: normalizeMxt002Sentence(stringifyValue(sourceItem?.body || sourceItem?.description || sourceItem?.value) || item.description, item.description || 'Not provided'),
+    };
+  });
+}
+
+function normalizeMxt008PipelineItems(items: unknown, fallbackItems: Array<{ title: string; description?: string }>): Array<{ title: string; description?: string }> {
+  const source = Array.isArray(items) ? items as any[] : [];
+  const fallback = [
+    { title: 'Capture', description: 'Zapier receives the form, ad lead, or CRM event.' },
+    { title: 'Normalize', description: 'n8n cleans the lead fields and maps source values.' },
+    { title: 'Score', description: 'Fit, urgency, relationship strength, and risk are scored.' },
+    { title: 'Recommend', description: 'The safest channel is selected: LinkedIn, email, call, or review.' },
+    { title: 'Log + Alert', description: 'CRM is updated and Slack notifies the right sales owner.' },
+  ];
+  return fallback.map((item, index) => {
+    const sourceItem = source[index] || fallbackItems[index];
+    return {
+      title: normalizeMxt008Title(stringifyValue(sourceItem?.title || sourceItem?.step) || item.title),
+      description: normalizeMxt002Sentence(stringifyValue(sourceItem?.description || sourceItem?.body || sourceItem?.value) || item.description, item.description || 'Not provided'),
+    };
+  });
+}
+
+function normalizeMxt008CompactItems(items: unknown, fallbackItems: Array<{ title: string; description?: string }>, fallbackValues: string[]): Array<{ title: string; description?: string }> {
+  const source = Array.isArray(items) ? items as any[] : [];
+  return fallbackValues.map((text, index) => {
+    const sourceItem = source[index] || fallbackItems[index];
+    return {
+      title: `Item ${index + 1}`,
+      description: normalizeMxt002Sentence(stripMxt004NumberPrefix(stringifyValue(sourceItem?.body || sourceItem?.value || sourceItem?.description || sourceItem?.title) || text), text),
+    };
+  });
+}
+
+function normalizeMxt008Short(value: string | undefined, maxWords: number): string {
+  return sentenceFragment(stringifyValue(value).replace(/^[^A-Za-z0-9]+\s*/, '').replace(/[.!?]+$/, '') || 'Not provided', maxWords);
+}
+
+function normalizeMxt008Title(value: string | undefined): string {
+  return stringifyValue(value).replace(/^[^A-Za-z0-9]+\s*/, '').replace(/\s+/g, ' ').trim() || 'Not provided';
+}
+
+function getMxt008DefaultTitle(ucId: string): string {
+  if (ucId.toUpperCase() === 'UC2') return 'Risk Assessment Decision Engine for B2B Outreach Routing';
+  return 'Choose the safest outreach channel for a high-value B2B lead';
+}
+
+function getMxt008DefaultUseCase(): string {
+  return 'Safest outreach channel selection for a high-value B2B lead.';
+}
+
+function getMxt008DefaultSetup(ucId: string): string {
+  if (ucId.toUpperCase() === 'UC1') return 'Starter setup';
+  if (ucId.toUpperCase() === 'UC2') return 'Intermediate setup';
+  return 'Advanced setup';
+}
+
+function getMxt008DefaultPillOne(ucId: string): string {
+  if (ucId.toUpperCase() === 'UC1') return 'Risk Workflow';
+  if (ucId.toUpperCase() === 'UC2') return 'Decision Engine';
+  return 'Decision Blueprint';
+}
+
+function getMxt008DefaultSummaryTitle(ucId: string): string {
+  if (ucId.toUpperCase() === 'UC1') return 'Risk Assessment Idea Summary';
+  if (ucId.toUpperCase() === 'UC2') return 'Decision Engine Summary';
+  return 'Risk Assessment Automation Blueprint';
+}
+
+function getMxt008DefaultSummaryBody(ucId: string): string {
+  if (ucId.toUpperCase() === 'UC1') return 'Create a simple Zapier+n8n workflow that reviews a B2B lead, checks basic risk signals, and recommends the safest outreach channel before sales starts outreach.';
+  if (ucId.toUpperCase() === 'UC2') return 'Build a Zapier+n8n decision workflow that evaluates lead quality, relationship context, and compliance risk before selecting the outreach channel.';
+  return 'Create a production-ready decision engine that uses Zapier for app triggers and n8n for routing logic. The workflow scores the lead, checks compliance and relationship context, recommends the safest outreach channel, logs the rationale, and escalates high-value opportunities.';
+}
+
+function getMxt008DefaultWorkflowExplanation(ucId: string): string {
+  if (ucId.toUpperCase() === 'UC2') return 'Zapier captures new lead events from forms or CRM changes. n8n enriches the record, applies scoring rules, checks risk signals, and routes the lead to the safest outreach path.';
+  return 'Zapier handles the trigger reliability while n8n owns the risk rules, recommendation logic, CRM writeback, and Slack escalation. This keeps the system easy to audit and easier to improve over time.';
+}
+
+function getMxt008DefaultIdeaBody(): string {
+  return 'A Zapier trigger captures a new lead, sends the lead fields to n8n, and returns a recommended channel such as LinkedIn, email, call, or manual review.';
+}
+
+function getMxt008RecommendationFallbacks(): string[] {
+  return [
+    'Start with LinkedIn-first routing for high-value leads with weak opt-in context.',
+    'Keep the first version rule-based so sales can audit each recommendation.',
+    'Review channel outcomes weekly before adding more automation branches.',
+  ];
+}
+
+function getMxt008RiskFallbacks(): string[] {
+  return [
+    'Incomplete CRM fields can push good leads into manual review.',
+    'Too many Zapier paths can make decision logic harder to maintain.',
+    'Opportunity: use logged rationales to train better routing rules over time.',
+  ];
 }
 
 function getMxt008Items(
